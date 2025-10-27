@@ -7,6 +7,7 @@ import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
 import { IMessageService } from "../interfaces/bridges/linea/IMessageService.sol";
 import { ILineaBridgeAdapter } from "../interfaces/bridges/linea/ILineaBridgeAdapter.sol";
 import { Bytes32AddressLib } from "../utils/Bytes32AddressLib.sol";
+import { BridgeTypes } from "./BridgeTypes.sol";
 
 contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
     /**
@@ -21,11 +22,6 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
      * @notice Thrown when refunding excess fee fails
      */
     error FeeRefundFailed();
-
-    /**
-     * @notice The unique identifier for the bridge protocol this adapter implements
-     */
-    uint16 private constant BRIDGE_TYPE = 2;
 
     constructor(IBridgeCoordinator _coordinator, address owner) BaseAdapter(_coordinator, owner) { }
 
@@ -67,7 +63,7 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
         require(chainId != 0, UnauthorizedCaller());
 
         bytes32 remoteSender = Bytes32AddressLib.toBytes32WithLowAddress(messageService.sender());
-        coordinator.settleInboundMessage(BRIDGE_TYPE, chainId, remoteSender, messageData, messageId);
+        coordinator.settleInboundMessage(bridgeType(), chainId, remoteSender, messageData, messageId);
     }
 
     /// @inheritdoc IBridgeAdapter
@@ -80,6 +76,6 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
 
     /// @inheritdoc BaseAdapter
     function bridgeType() public pure override returns (uint16) {
-        return BRIDGE_TYPE;
+        return BridgeTypes.LINEA;
     }
 }

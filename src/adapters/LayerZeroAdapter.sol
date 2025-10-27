@@ -9,6 +9,7 @@ import { OAppOptionsType3 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OA
 
 import { BaseAdapter, IBridgeCoordinator } from "./BaseAdapter.sol";
 import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
+import { BridgeTypes } from "./BridgeTypes.sol";
 
 /**
  * @title LayerZeroAdapter
@@ -37,11 +38,6 @@ abstract contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
     /// @param configuredPeer The peer address registered in LayerZero's endpoint for the destination.
     /// @param coordinatorAdapter The adapter identifier supplied by the BridgeCoordinator call.
     error PeersMismatch(bytes32 configuredPeer, bytes32 coordinatorAdapter);
-
-    /**
-     * @notice The unique identifier for the bridge protocol this adapter implements
-     */
-    uint16 public constant BRIDGE_TYPE = 1;
 
     /// @notice Msg type for sending a string, for use in OAppOptionsType3 as an enforced option
     uint16 public constant SEND = 1;
@@ -111,7 +107,7 @@ abstract contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
 
         (bytes memory messageData, bytes32 messageId) = abi.decode(payload, (bytes, bytes32));
 
-        coordinator.settleInboundMessage(BRIDGE_TYPE, chainId, origin.sender, messageData, messageId);
+        coordinator.settleInboundMessage(bridgeType(), chainId, origin.sender, messageData, messageId);
 
         emit MessageGuidRecorded(messageId, guid, chainId, origin.srcEid);
     }
@@ -138,7 +134,7 @@ abstract contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
 
     /// @inheritdoc BaseAdapter
     function bridgeType() public pure override returns (uint16) {
-        return BRIDGE_TYPE;
+        return BridgeTypes.LAYER_ZERO;
     }
 
     /**
