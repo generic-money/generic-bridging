@@ -9,6 +9,11 @@ import { ILineaBridgeAdapter } from "../interfaces/bridges/linea/ILineaBridgeAda
 import { Bytes32AddressLib } from "../utils/Bytes32AddressLib.sol";
 import { BridgeTypes } from "./BridgeTypes.sol";
 
+/**
+ * @title LineaBridgeAdapter
+ * @notice Bridge adapter using Linea's Message Service for cross-chain messaging
+ * @dev Handles message passing only - does NOT hold or manage tokens
+ */
 contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
     /**
      * @notice Thrown when arbitrary calldata does not match the expected encoding format.
