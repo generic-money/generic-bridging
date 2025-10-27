@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.29;
+
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+
+import { IBridgeCoordinator } from "../interfaces/IBridgeCoordinator.sol";
+import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
+import { Bytes32AddressLib } from "../utils/Bytes32AddressLib.sol";
+
+abstract contract BaseBridgeCoordinator is
+    AccessControlUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
+    IBridgeCoordinator
+{
+    /**
+     * @notice The address of the share token that this coordinator manages
+     */
+    address public shareToken;
+
+    /**
+     * @notice Configuration for the local bridge adapter
+     * @dev Includes the adapter instance and a mapping of inbound-only adapters
+     * @param adapter The local bridge adapter contract
+     * @param isInboundOnly Mapping of adapter addresses that are allowed only for inbound messages
+     */
+    struct LocalConfig {
+        IBridgeAdapter adapter;
+        mapping(address => bool) isInboundOnly;
+    }
+
+    /**
+     * @notice Configuration for a remote bridge adapter on another chain
+     * @dev Includes the adapter identifier and a mapping of inbound-only adapters
+     * @param adapter The remote bridge adapter address encoded as bytes32
+     * @param isInboundOnly Mapping of remote adapter identifiers that are allowed only for inbound messages
+     */
+    struct RemoteConfig {
+        bytes32 adapter;
+        mapping(bytes32 => bool) isInboundOnly;
+    }
+
+    /**
+     * @notice Encapsulates both local and remote configurations for a specific bridge type
+     * @dev Maps chain IDs to their respective remote configurations
+     * @param local The local bridge adapter configuration
+     * @param remote Mapping of chain IDs to their remote bridge adapter configurations
+     */
+    struct BridgeTypeConfig {
+        LocalConfig local;
+        mapping(uint256 chainId => RemoteConfig) remote;
+    }
+
+    /**
+     * @notice Mapping of bridge types to their respective configurations
+     */
+    mapping(uint16 bridgeType => BridgeTypeConfig) internal bridgeTypes;
+
+    /**
+     * @notice Mapping of message IDs to their failed execution message hashes
+     * @dev Used to track messages that failed during inbound settlement for potential rollback
+     */
+    mapping(bytes32 messageId => bytes32 messageHash) public failedMessageExecutions;
+
+    /**
+     * @notice Reserved storage space to allow for layout changes in the future.
+     */
+    uint256[50] private __gap;
+
+    /**
+     * @notice Enum representing the type of cross-chain message
+     */
+    enum MessageType {
+        BRIDGE
+    }
+
+    /**
+     * @notice Structure representing a cross-chain bridge message
+     * @param messageType The type of the message (BRIDGE)
+     * @param data The payload of the message
+     */
+    struct Message {
+        MessageType messageType;
+        bytes data;
+    }
+
+    /**
+     * @notice Structure representing the data for a bridge operation
+     * @param omnichainSender The sender address on the source chain (as bytes32)
+     * @param omnichainRecipient The recipient address on the destination chain (as bytes32)
+     * @param amount The amount of tokens to bridge
+     */
+    struct BridgeMessage {
+        bytes32 omnichainSender;
+        bytes32 omnichainRecipient;
+        uint256 amount;
+    }
+
+    /**
+     * @notice Checks if a specific bridge type is supported for a destination chain
+     * @dev Returns true only if both local and remote adapters are configured
+     * @param bridgeType The identifier for the bridge protocol
+     * @param chainId The destination chain ID to check support for
+     * @return True if the bridge type is supported for the specified chain, false otherwise
+     */
+    function supportsBridgeTypeFor(uint16 bridgeType, uint256 chainId) external view returns (bool) {
+        bool localAdapter = address(bridgeTypes[bridgeType].local.adapter) != address(0);
+        bool remoteAdapter = bridgeTypes[bridgeType].remote[chainId].adapter != bytes32(0);
+        return localAdapter && remoteAdapter;
+    }
+
+    /**
+     * @notice Returns the local bridge adapter for a specific bridge type
+     * @param bridgeType The identifier for the bridge protocol
+     * @return The local bridge adapter contract
+     */
+    function localBridgeAdapter(uint16 bridgeType) external view returns (IBridgeAdapter) {
+        return bridgeTypes[bridgeType].local.adapter;
+    }
+
+    /**
+     * @notice Checks if a local bridge adapter is marked as inbound-only for a specific bridge type
+     * @param bridgeType The identifier for the bridge protocol
+     * @param adapter The local bridge adapter address to check
+     * @return True if the adapter is inbound-only, false otherwise
+     */
+    function isInboundOnlyLocalBridgeAdapter(uint16 bridgeType, address adapter) external view returns (bool) {
+        return bridgeTypes[bridgeType].local.isInboundOnly[adapter];
+    }
+
+    /**
+     * @notice Returns the remote bridge adapter address for a specific bridge type and chain
+     * @param bridgeType The identifier for the bridge protocol
+     * @param chainId The remote chain ID
+     * @return The remote bridge adapter address encoded as bytes32
+     */
+    function remoteBridgeAdapter(uint16 bridgeType, uint256 chainId) external view returns (bytes32) {
+        return bridgeTypes[bridgeType].remote[chainId].adapter;
+    }
+
+    /**
+     * @notice Checks if a remote bridge adapter is marked as inbound-only for a specific bridge type and chain
+     * @param bridgeType The identifier for the bridge protocol
+     * @param chainId The remote chain ID
+     * @param adapter The remote bridge adapter address (encoded as bytes32) to check
+     * @return True if the adapter is inbound-only, false otherwise
+     */
+    function isInboundOnlyRemoteBridgeAdapter(
+        uint16 bridgeType,
+        uint256 chainId,
+        bytes32 adapter
+    )
+        external
+        view
+        returns (bool)
+    {
+        return bridgeTypes[bridgeType].remote[chainId].isInboundOnly[adapter];
+    }
+
+    /**
+     * @notice Encodes an EVM address to bytes32 for cross-chain compatibility
+     * @param addr The EVM address to encode
+     * @return The address encoded as bytes32
+     */
+    function encodeOmnichainAddress(address addr) public pure returns (bytes32) {
+        return Bytes32AddressLib.toBytes32WithLowAddress(addr);
+    }
+
+    /**
+     * @notice Decodes a bytes32 value back to an EVM address
+     * @param oAddr The bytes32 encoded address
+     * @return The decoded EVM address
+     */
+    function decodeOmnichainAddress(bytes32 oAddr) public pure returns (address) {
+        return Bytes32AddressLib.toAddressFromLowBytes(oAddr);
+    }
+
+    /**
+     * @notice Computes the hash for a failed message execution
+     * @dev Used to track failed inbound message settlements. The hash is not used as a unique identifier. Rather,
+     * it allows verification that a provided failed message data corresponds to the original message.
+     * @param chainId The source chain ID where the bridge operation originated
+     * @param messageData The encoded bridge message data
+     * @return The computed hash of the failed message
+     */
+    function _failedMessageHash(uint256 chainId, bytes memory messageData) internal pure returns (bytes32) {
+        // forge-lint: disable-next-line(asm-keccak256)
+        return keccak256(abi.encode(chainId, messageData));
+    }
+
+    /**
+     * @notice Dispatches a cross-chain message via the specified bridge adapter
+     * @dev Internal function that routes the message to the appropriate bridge adapter
+     * @param bridgeType The identifier for the bridge protocol to use
+     * @param chainId The destination chain ID
+     * @param messageData The encoded bridge message data to be sent
+     * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @return messageId Unique identifier for tracking the cross-chain message
+     */
+    function _dispatchMessage(
+        uint16 bridgeType,
+        uint256 chainId,
+        bytes memory messageData,
+        bytes calldata bridgeParams
+    )
+        internal
+        virtual
+        returns (bytes32 messageId);
+
+    /**
+     * @notice Restricts tokens when bridging out
+     * @dev Virtual function that inheriting contracts can override to implement burn/lock logic
+     * @param owner The address that owns the tokens to be restricted
+     * @param amount The amount of tokens to restrict
+     */
+    function _restrictTokens(address owner, uint256 amount) internal virtual;
+
+    /**
+     * @notice Releases tokens when bridging in
+     * @dev Virtual function that inheriting contracts can override to implement mint/unlock logic
+     * @param receiver The address that should receive the released tokens
+     * @param amount The amount of tokens to release
+     */
+    function _releaseTokens(address receiver, uint256 amount) internal virtual;
+}
