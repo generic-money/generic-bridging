@@ -7,9 +7,9 @@ import {
     BridgeMessageCoordinator,
     IBridgeAdapter,
     IERC20
-} from "../../src/coordinator/BridgeCoordinator.sol";
+} from "../../../src/coordinator/BridgeCoordinator.sol";
 
-import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "./BridgeCoordinator.t.sol";
+import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "../BridgeCoordinator.t.sol";
 
 abstract contract BridgeCoordinator_BridgeMessage_Test is BridgeCoordinatorTest { }
 

@@ -5,10 +5,10 @@ import { Test } from "forge-std/Test.sol";
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { LineaBridgeAdapter, BaseAdapter } from "../../src/adapters/LineaBridgeAdapter.sol";
-import { BaseBridgeCoordinator, IBridgeCoordinator } from "../../src/coordinator/BaseBridgeCoordinator.sol";
-import { ILineaBridgeAdapter } from "../../src/interfaces/bridges/linea/ILineaBridgeAdapter.sol";
-import { IMessageService } from "../../src/interfaces/bridges/linea/IMessageService.sol";
+import { LineaBridgeAdapter, BaseAdapter } from "../../../src/adapters/LineaBridgeAdapter.sol";
+import { BaseBridgeCoordinator, IBridgeCoordinator } from "../../../src/coordinator/BaseBridgeCoordinator.sol";
+import { ILineaBridgeAdapter } from "../../../src/interfaces/bridges/linea/ILineaBridgeAdapter.sol";
+import { IMessageService } from "../../../src/interfaces/bridges/linea/IMessageService.sol";
 
 contract MockBridgeCoordinator is IBridgeCoordinator {
     uint16 public lastBridgeType;

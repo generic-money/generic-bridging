@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { Test } from "forge-std/Test.sol";
 
-import { Bytes32AddressLib } from "../../src/utils/Bytes32AddressLib.sol";
+import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 contract Bytes32AddressLibTest is Test {
     function test_roundTripFixedAddress() external {
