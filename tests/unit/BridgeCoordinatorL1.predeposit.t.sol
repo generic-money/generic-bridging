@@ -6,10 +6,7 @@ import { Test } from "forge-std/Test.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {
-    PredepositCoordinator,
-    BridgeMessageCoordinator
-} from "../../src/coordinator/PredepositCoordinator.sol";
+import { PredepositCoordinator, BridgeMessageCoordinator } from "../../src/coordinator/PredepositCoordinator.sol";
 import { BridgeCoordinator } from "../../src/coordinator/BridgeCoordinator.sol";
 import { IBridgeAdapter } from "../../src/interfaces/IBridgeAdapter.sol";
 
