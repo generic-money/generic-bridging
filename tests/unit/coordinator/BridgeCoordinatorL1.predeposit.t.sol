@@ -17,7 +17,7 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
 
     address share = makeAddr("share");
     address admin = makeAddr("admin");
-    address sender = makeAddr("sender");
+    address owner = makeAddr("owner");
     bytes32 remoteSender = bytes32(uint256(uint160(makeAddr("remoteSender"))));
     address recipient = makeAddr("recipient");
     bytes32 remoteRecipient = bytes32(uint256(uint160(makeAddr("remoteRecipient"))));
@@ -78,36 +78,39 @@ contract BridgeCoordinatorL1_PredepositCoordinator_Predeposit_Test is BridgeCoor
         coordinator.workaround_setPredepositState(chainNickname, PredepositCoordinator.PredepositState(state));
 
         vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
-        vm.prank(sender);
-        coordinator.predeposit(chainNickname, remoteRecipient, amount);
+        coordinator.predeposit(chainNickname, owner, remoteRecipient, amount);
+    }
+
+    function test_shouldRevert_whenOnBehalfIsZero() public {
+        vm.expectRevert(PredepositCoordinator.Predeposit_ZeroOnBehalf.selector);
+        coordinator.predeposit(chainNickname, address(0), remoteRecipient, amount);
     }
 
     function test_shouldRevert_whenZeroRemoteRecipient() public {
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroRemoteRecipient.selector);
-        vm.prank(sender);
-        coordinator.predeposit(chainNickname, bytes32(0), amount);
+        coordinator.predeposit(chainNickname, owner, bytes32(0), amount);
     }
 
     function test_shouldRevert_whenZeroAmount() public {
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroAmount.selector);
-        vm.prank(sender);
-        coordinator.predeposit(chainNickname, remoteRecipient, 0);
+        coordinator.predeposit(chainNickname, owner, remoteRecipient, 0);
     }
 
     function testFuzz_shouldPredeposit(uint256 _amount) public {
         vm.assume(_amount > 0);
+        address sender = makeAddr("sender");
 
         vm.expectEmit();
-        emit PredepositCoordinator.Predeposited(chainNickname, sender, remoteRecipient, _amount);
+        emit PredepositCoordinator.Predeposited(chainNickname, sender, owner, remoteRecipient, _amount);
 
         vm.expectCall(
             share, abi.encodeWithSelector(IERC20.transferFrom.selector, sender, address(coordinator), _amount)
         );
 
         vm.prank(sender);
-        coordinator.predeposit(chainNickname, remoteRecipient, _amount);
+        coordinator.predeposit(chainNickname, owner, remoteRecipient, _amount);
 
-        assertEq(coordinator.getPredeposit(chainNickname, sender, remoteRecipient), _amount);
+        assertEq(coordinator.getPredeposit(chainNickname, owner, remoteRecipient), _amount);
         assertEq(coordinator.getTotalPredeposits(chainNickname), _amount);
     }
 
@@ -115,29 +118,23 @@ contract BridgeCoordinatorL1_PredepositCoordinator_Predeposit_Test is BridgeCoor
         uint256 firstAmount = amount;
         uint256 secondAmount = amount * 2;
 
-        vm.prank(sender);
-        coordinator.predeposit(chainNickname, remoteRecipient, firstAmount);
+        coordinator.predeposit(chainNickname, owner, remoteRecipient, firstAmount);
+        coordinator.predeposit(chainNickname, owner, remoteRecipient, secondAmount);
 
-        vm.prank(sender);
-        coordinator.predeposit(chainNickname, remoteRecipient, secondAmount);
-
-        assertEq(coordinator.getPredeposit(chainNickname, sender, remoteRecipient), firstAmount + secondAmount);
+        assertEq(coordinator.getPredeposit(chainNickname, owner, remoteRecipient), firstAmount + secondAmount);
         assertEq(coordinator.getTotalPredeposits(chainNickname), firstAmount + secondAmount);
     }
 
     function test_shouldAccumulateTotalPredepositsMultipleUsers() public {
-        address anotherSender = makeAddr("anotherSender");
+        address anotherOwner = makeAddr("anotherOwner");
         uint256 firstAmount = amount;
         uint256 secondAmount = amount * 2;
 
-        vm.prank(sender);
-        coordinator.predeposit(chainNickname, remoteRecipient, firstAmount);
+        coordinator.predeposit(chainNickname, owner, remoteRecipient, firstAmount);
+        coordinator.predeposit(chainNickname, anotherOwner, remoteRecipient, secondAmount);
 
-        vm.prank(anotherSender);
-        coordinator.predeposit(chainNickname, remoteRecipient, secondAmount);
-
-        assertEq(coordinator.getPredeposit(chainNickname, sender, remoteRecipient), firstAmount);
-        assertEq(coordinator.getPredeposit(chainNickname, anotherSender, remoteRecipient), secondAmount);
+        assertEq(coordinator.getPredeposit(chainNickname, owner, remoteRecipient), firstAmount);
+        assertEq(coordinator.getPredeposit(chainNickname, anotherOwner, remoteRecipient), secondAmount);
         assertEq(coordinator.getTotalPredeposits(chainNickname), firstAmount + secondAmount);
     }
 }
@@ -151,7 +148,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
         super.setUp();
         coordinator.workaround_setPredepositState(chainNickname, PredepositCoordinator.PredepositState.DISPATCHED);
         coordinator.workaround_setPredepositChainId(chainNickname, remoteChainId);
-        coordinator.workaround_setPredeposit(chainNickname, sender, remoteRecipient, 100 ether);
+        coordinator.workaround_setPredeposit(chainNickname, owner, remoteRecipient, 100 ether);
         coordinator.workaround_setTotalPredeposits(chainNickname, 200 ether);
     }
 
@@ -162,43 +159,43 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
         coordinator.workaround_setPredepositState(chainNickname, PredepositCoordinator.PredepositState(state));
 
         vm.expectRevert(PredepositCoordinator.Predeposit_DispatchNotEnabled.selector);
-        coordinator.bridgePredeposit(bridgeType, chainNickname, sender, remoteRecipient, bridgeParams);
+        coordinator.bridgePredeposit(bridgeType, chainNickname, owner, remoteRecipient, bridgeParams);
     }
 
     function test_shouldRevert_whenNotAssignedChainId() public {
         coordinator.workaround_setPredepositChainId(chainNickname, 0);
 
         vm.expectRevert(PredepositCoordinator.Predeposit_ChainIdZero.selector);
-        coordinator.bridgePredeposit(bridgeType, chainNickname, sender, remoteRecipient, bridgeParams);
+        coordinator.bridgePredeposit(bridgeType, chainNickname, owner, remoteRecipient, bridgeParams);
     }
 
     function test_shouldRevert_whenNoAmountToBridge() public {
-        coordinator.workaround_setPredeposit(chainNickname, sender, remoteRecipient, 0);
+        coordinator.workaround_setPredeposit(chainNickname, owner, remoteRecipient, 0);
 
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroAmount.selector);
-        coordinator.bridgePredeposit(bridgeType, chainNickname, sender, remoteRecipient, bridgeParams);
+        coordinator.bridgePredeposit(bridgeType, chainNickname, owner, remoteRecipient, bridgeParams);
     }
 
     function test_shouldRevert_whenChainAdaptersNotSet() public {
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.bridgePredeposit(bridgeType + 1, chainNickname, sender, remoteRecipient, bridgeParams);
+        coordinator.bridgePredeposit(bridgeType + 1, chainNickname, owner, remoteRecipient, bridgeParams);
     }
 
     function testFuzz_shouldDispatchPredeposit(uint256 fee, uint256 amount) public {
         uint256 totalPredeposits = type(uint256).max;
         amount = bound(amount, 1, totalPredeposits);
         fee = bound(fee, 0, 1 ether);
-        coordinator.workaround_setPredeposit(chainNickname, sender, remoteRecipient, amount);
+        coordinator.workaround_setPredeposit(chainNickname, owner, remoteRecipient, amount);
         coordinator.workaround_setTotalPredeposits(chainNickname, totalPredeposits);
 
         address caller = makeAddr("caller");
         deal(caller, fee);
 
         bytes memory expectedBridgeMessageData =
-            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(sender), remoteRecipient, amount);
+            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(owner), remoteRecipient, amount);
 
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedOut(sender, remoteRecipient, amount, messageId);
+        emit BridgeMessageCoordinator.BridgedOut(caller, owner, remoteRecipient, amount, messageId);
         vm.expectEmit();
         emit PredepositCoordinator.PredepositBridgedOut(chainNickname, messageId);
 
@@ -216,9 +213,9 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
         );
 
         vm.prank(caller);
-        coordinator.bridgePredeposit{ value: fee }(bridgeType, chainNickname, sender, remoteRecipient, bridgeParams);
+        coordinator.bridgePredeposit{ value: fee }(bridgeType, chainNickname, owner, remoteRecipient, bridgeParams);
 
-        assertEq(coordinator.getPredeposit(chainNickname, sender, remoteRecipient), 0);
+        assertEq(coordinator.getPredeposit(chainNickname, owner, remoteRecipient), 0);
         assertEq(coordinator.getTotalPredeposits(chainNickname), totalPredeposits - amount);
     }
 }
@@ -229,7 +226,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_WithdrawPredeposit_Test is
     function setUp() public override {
         super.setUp();
         coordinator.workaround_setPredepositState(chainNickname, PredepositCoordinator.PredepositState.WITHDRAWN);
-        coordinator.workaround_setPredeposit(chainNickname, sender, remoteRecipient, 100 ether);
+        coordinator.workaround_setPredeposit(chainNickname, owner, remoteRecipient, 100 ether);
         coordinator.workaround_setTotalPredeposits(chainNickname, 200 ether);
     }
 
@@ -240,39 +237,39 @@ contract BridgeCoordinatorL1_PredepositCoordinator_WithdrawPredeposit_Test is
         coordinator.workaround_setPredepositState(chainNickname, PredepositCoordinator.PredepositState(state));
 
         vm.expectRevert(PredepositCoordinator.Predeposit_WithdrawalsNotEnabled.selector);
-        vm.prank(sender);
+        vm.prank(owner);
         coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient);
     }
 
     function test_shouldRevert_whenZeroAmountToWithdraw() public {
-        coordinator.workaround_setPredeposit(chainNickname, sender, remoteRecipient, 0);
+        coordinator.workaround_setPredeposit(chainNickname, owner, remoteRecipient, 0);
 
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroAmount.selector);
-        vm.prank(sender);
+        vm.prank(owner);
         coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient);
     }
 
     function test_shouldRevert_whenZeroRecipient() public {
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroRecipient.selector);
-        vm.prank(sender);
+        vm.prank(owner);
         coordinator.withdrawPredeposit(chainNickname, remoteRecipient, address(0));
     }
 
     function testFuzz_shouldWithdrawPredeposit(uint256 amount) public {
         uint256 totalPredeposits = type(uint256).max;
         amount = bound(amount, 1, totalPredeposits);
-        coordinator.workaround_setPredeposit(chainNickname, sender, remoteRecipient, amount);
+        coordinator.workaround_setPredeposit(chainNickname, owner, remoteRecipient, amount);
         coordinator.workaround_setTotalPredeposits(chainNickname, totalPredeposits);
 
         vm.expectEmit();
-        emit PredepositCoordinator.PredepositWithdrawn(chainNickname, sender, remoteRecipient, recipient, amount);
+        emit PredepositCoordinator.PredepositWithdrawn(chainNickname, owner, remoteRecipient, recipient, amount);
 
         vm.expectCall(share, abi.encodeWithSelector(IERC20.transfer.selector, recipient, amount));
 
-        vm.prank(sender);
+        vm.prank(owner);
         coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient);
 
-        assertEq(coordinator.getPredeposit(chainNickname, sender, remoteRecipient), 0);
+        assertEq(coordinator.getPredeposit(chainNickname, owner, remoteRecipient), 0);
         assertEq(coordinator.getTotalPredeposits(chainNickname), totalPredeposits - amount);
     }
 }
