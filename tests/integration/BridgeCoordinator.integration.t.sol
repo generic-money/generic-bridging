@@ -57,7 +57,7 @@ contract BridgeCoordinator_Bridge_IntegrationTest is BridgeCoordinatorIntegratio
         // Fail to bridge when no adapters are set
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
         vm.prank(user);
-        coordinator.bridge{ value: 1 ether }(bridgeType, chainId, remoteUser, 100e18, "bridge data");
+        coordinator.bridge{ value: 1 ether }(bridgeType, chainId, user, remoteUser, 100e18, "bridge data");
 
         // Setup local adapter
         coordinator.setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
@@ -67,7 +67,7 @@ contract BridgeCoordinator_Bridge_IntegrationTest is BridgeCoordinatorIntegratio
         // Fail to bridge when no remote adapter is set
         vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
         vm.prank(user);
-        coordinator.bridge{ value: 1 ether }(bridgeType, chainId, remoteUser, 100e18, "bridge data");
+        coordinator.bridge{ value: 1 ether }(bridgeType, chainId, user, remoteUser, 100e18, "bridge data");
 
         // Setup remote adapter
         coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
@@ -77,7 +77,8 @@ contract BridgeCoordinator_Bridge_IntegrationTest is BridgeCoordinatorIntegratio
         // Bridge successfully
         localAdapter.returnMessageId(messageId);
         vm.prank(user);
-        bytes32 msgId = coordinator.bridge{ value: 1 ether }(bridgeType, chainId, remoteUser, 100e18, "bridge data");
+        bytes32 msgId =
+            coordinator.bridge{ value: 1 ether }(bridgeType, chainId, user, remoteUser, 100e18, "bridge data");
 
         assertEq(msgId, messageId);
         assertEq(gusd.balanceOf(address(coordinator)), 100e18);
@@ -195,7 +196,7 @@ contract BridgeCoordinator_Predeposit_IntegrationTest is BridgeCoordinatorIntegr
         // Fail to predeposit before enabling
         vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
         vm.prank(user);
-        coordinator.predeposit(chainNickname, remoteUser, 100e18);
+        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
 
         // Enable predeposits for a chain
         coordinator.enablePredeposits(chainNickname);
@@ -206,14 +207,14 @@ contract BridgeCoordinator_Predeposit_IntegrationTest is BridgeCoordinatorIntegr
 
         // Predeposit successfully
         vm.prank(user);
-        coordinator.predeposit(chainNickname, remoteUser, 100e18);
+        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
 
         assertEq(gusd.balanceOf(address(coordinator)), 100e18);
         assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 100e18);
 
         // Predeposit more successfully
         vm.prank(user);
-        coordinator.predeposit(chainNickname, remoteUser, 300e18);
+        coordinator.predeposit(chainNickname, user, remoteUser, 300e18);
 
         assertEq(gusd.balanceOf(address(coordinator)), 400e18);
         assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 400e18);
@@ -271,7 +272,7 @@ contract BridgeCoordinator_Predeposit_IntegrationTest is BridgeCoordinatorIntegr
         // Fail to predeposit after enabling dispatch
         vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
         vm.prank(user);
-        coordinator.predeposit(chainNickname, remoteUser, 100e18);
+        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
     }
 
     function test_predeposit_withdraw() public {
@@ -280,7 +281,7 @@ contract BridgeCoordinator_Predeposit_IntegrationTest is BridgeCoordinatorIntegr
 
         // Predeposit successfully
         vm.prank(user);
-        coordinator.predeposit(chainNickname, remoteUser, 100e18);
+        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
 
         // Enable withdrawals for a chain
         coordinator.enablePredepositsWithdraw(chainNickname);
@@ -305,6 +306,6 @@ contract BridgeCoordinator_Predeposit_IntegrationTest is BridgeCoordinatorIntegr
         // Fail to predeposit after enabling withdrawals
         vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
         vm.prank(user);
-        coordinator.predeposit(chainNickname, remoteUser, 100e18);
+        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
     }
 }

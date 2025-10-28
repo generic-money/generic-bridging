@@ -7,12 +7,17 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
     /**
      * @notice Emitted when shares are bridged out to another chain
      * @param sender The address that initiated the bridge operation
+     * @param owner The address on this chain on whose behalf the shares are bridged
      * @param remoteRecipient The recipient address on the destination chain (as bytes32)
      * @param amount The amount of shares bridged out
      * @param messageId Unique identifier for tracking the bridge message
      */
     event BridgedOut(
-        address indexed sender, bytes32 indexed remoteRecipient, uint256 amount, bytes32 indexed messageId
+        address sender,
+        address indexed owner,
+        bytes32 indexed remoteRecipient,
+        uint256 amount,
+        bytes32 indexed messageId
     );
     /**
      * @notice Emitted when shares are bridged in from another chain
@@ -29,6 +34,10 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      */
     event BridgeRollbackedOut(bytes32 indexed rollbackedMessageId, bytes32 indexed messageId);
 
+    /**
+     * @notice Thrown when the decoded on-behalf address is zero
+     */
+    error BridgeMessage_InvalidOnBehalf();
     /**
      * @notice Thrown when the decoded recipient address is zero
      */
@@ -63,6 +72,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      * @dev Restricts shares on this chain and sends a message to release equivalent shares on destination chain
      * @param bridgeType The identifier for the bridge protocol to use (must have registered adapter)
      * @param chainId The destination chain ID
+     * @param onBehalf The address on this chain on whose behalf the shares are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param amount The amount of shares to bridge
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
@@ -71,6 +81,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
     function bridge(
         uint16 bridgeType,
         uint256 chainId,
+        address onBehalf,
         bytes32 remoteRecipient,
         uint256 amount,
         bytes calldata bridgeParams
@@ -80,16 +91,16 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         nonReentrant
         returns (bytes32 messageId)
     {
+        require(onBehalf != address(0), BridgeMessage_InvalidOnBehalf());
         require(remoteRecipient != bytes32(0), BridgeMessage_InvalidRemoteRecipient());
         require(amount > 0, BridgeMessage_InvalidAmount());
 
-        bytes memory bridgeMessageData =
-            encodeBridgeMessage(encodeOmnichainAddress(msg.sender), remoteRecipient, amount);
+        bytes memory bridgeMessageData = encodeBridgeMessage(encodeOmnichainAddress(onBehalf), remoteRecipient, amount);
         messageId = _dispatchMessage(bridgeType, chainId, bridgeMessageData, bridgeParams);
 
         _restrictTokens(msg.sender, amount);
 
-        emit BridgedOut(msg.sender, remoteRecipient, amount, messageId);
+        emit BridgedOut(msg.sender, onBehalf, remoteRecipient, amount, messageId);
     }
 
     /**
@@ -131,7 +142,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
             encodeBridgeMessage(bytes32(0), bridgeMessage.omnichainSender, bridgeMessage.amount);
         rollbackMessageId = _dispatchMessage(bridgeType, originalChainId, rollbackMessageData, bridgeParams);
 
-        emit BridgedOut(address(0), bridgeMessage.omnichainSender, bridgeMessage.amount, rollbackMessageId);
+        emit BridgedOut(msg.sender, address(0), bridgeMessage.omnichainSender, bridgeMessage.amount, rollbackMessageId);
         emit BridgeRollbackedOut(originalMessageId, rollbackMessageId);
     }
 

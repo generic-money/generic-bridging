@@ -11,14 +11,16 @@ import {
 
 import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "../BridgeCoordinator.t.sol";
 
-abstract contract BridgeCoordinator_BridgeMessage_Test is BridgeCoordinatorTest { }
+abstract contract BridgeCoordinator_BridgeMessage_Test is BridgeCoordinatorTest {
+    address owner = makeAddr("owner");
+}
 
 contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_BridgeMessage_Test {
     function test_shouldRevert_whenNoLocalAdapter() public {
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
 
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
     }
 
     function test_shouldRevert_whenNoRemoteAdapter() public {
@@ -26,7 +28,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, bytes32(0));
 
         vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
     }
 
     function test_shouldRevert_whenOnlyInboundLocalAdapter() public {
@@ -34,7 +36,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
 
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
     }
 
     function test_shouldRevert_whenOnlyInboundRemoteAdapter() public {
@@ -43,17 +45,22 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
 
         vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+    }
+
+    function test_shouldRevert_whenOnBehalfIsZero() public {
+        vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidOnBehalf.selector);
+        coordinator.bridge(bridgeType, remoteChainId, address(0), remoteRecipient, 1, "");
     }
 
     function test_shouldRevert_whenRemoteRecipientIsZero() public {
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidRemoteRecipient.selector);
-        coordinator.bridge(bridgeType, remoteChainId, bytes32(0), 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, bytes32(0), 1, "");
     }
 
     function test_shouldRevert_whenAmountIsZero() public {
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidAmount.selector);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 0, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 0, "");
     }
 
     function testFuzz_shouldCallBridgeOnLocalAdapter(
@@ -69,7 +76,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         deal(sender, fee);
 
         bytes memory bridgeMessageData =
-            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(sender), remoteRecipient, amount);
+            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(owner), remoteRecipient, amount);
 
         vm.expectCall(
             localAdapter,
@@ -85,43 +92,42 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         );
 
         vm.prank(sender);
-        coordinator.bridge{ value: fee }(bridgeType, remoteChainId, remoteRecipient, amount, bridgeParams);
+        coordinator.bridge{ value: fee }(bridgeType, remoteChainId, owner, remoteRecipient, amount, bridgeParams);
     }
 
-    function testFuzz_shouldLockTokens(uint256 amount) public {
+    function testFuzz_shouldLockTokensFromSender(uint256 amount) public {
         vm.assume(amount > 0);
 
         vm.expectCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector, sender, address(coordinator), amount));
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, amount, "");
     }
 
     function test_shouldReturnMessageId() public {
-        bytes32 returnedMessageId = coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 1, "");
+        bytes32 returnedMessageId = coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
 
         assertEq(returnedMessageId, messageId);
     }
 
     function test_shouldEmit_MessageOut() public {
         bytes memory bridgeMessageData =
-            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(sender), remoteRecipient, 1);
+            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(owner), remoteRecipient, 1);
 
         vm.expectEmit();
         emit BridgeCoordinator.MessageOut(bridgeType, remoteChainId, messageId, bridgeMessageData);
 
-        vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
     }
 
     function testFuzz_shouldEmit_BridgedOut(uint256 amount) public {
         vm.assume(amount > 0);
 
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedOut(sender, remoteRecipient, amount, messageId);
+        emit BridgeMessageCoordinator.BridgedOut(sender, owner, remoteRecipient, amount, messageId);
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, amount, "");
     }
 }
 
@@ -288,8 +294,9 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
 
     function test_shouldEmit_BridgedOut() public {
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedOut(address(0), originalRemoteSender, originalAmount, messageId);
+        emit BridgeMessageCoordinator.BridgedOut(sender, address(0), originalRemoteSender, originalAmount, messageId);
 
+        vm.prank(sender);
         coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
     }
 

@@ -16,6 +16,7 @@ abstract contract BridgeCoordinatorL2Test is Test {
     address manager = makeAddr("manager");
     bytes32 managerRole;
     address sender = makeAddr("sender");
+    address owner = makeAddr("owner");
     bytes32 remoteSender = bytes32(uint256(uint160(makeAddr("remoteSender"))));
     address recipient = makeAddr("recipient");
     bytes32 remoteRecipient = bytes32(uint256(uint160(makeAddr("remoteRecipient"))));
@@ -58,13 +59,13 @@ abstract contract BridgeCoordinatorL2Test is Test {
 }
 
 contract BridgeCoordinatorL2_Bridge_Test is BridgeCoordinatorL2Test {
-    function testFuzz_shouldBurnTokens(uint256 amount) public {
+    function testFuzz_shouldBurnTokensFromSender(uint256 amount) public {
         vm.assume(amount > 0);
 
         vm.expectCall(share, abi.encodeWithSelector(IERC20Mintable.burn.selector, sender, sender, amount));
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, remoteRecipient, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, amount, "");
     }
 }
 
