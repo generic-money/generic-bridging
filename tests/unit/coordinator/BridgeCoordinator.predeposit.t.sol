@@ -15,13 +15,13 @@ import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.so
 import { IBridgeAdapter } from "../../../src/interfaces/IBridgeAdapter.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
-import { BridgeCoordinatorL1Harness } from "../../harness/BridgeCoordinatorL1Harness.sol";
+import { BridgeCoordinatorPredepositHarness } from "../../harness/BridgeCoordinatorPredepositHarness.sol";
 
 using Bytes32AddressLib for address;
 using Bytes32AddressLib for bytes32;
 
 abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
-    BridgeCoordinatorL1Harness coordinator;
+    BridgeCoordinatorPredepositHarness coordinator;
 
     address share = makeAddr("share");
     address admin = makeAddr("admin");
@@ -48,7 +48,7 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
     }
 
     function setUp() public virtual {
-        coordinator = new BridgeCoordinatorL1Harness();
+        coordinator = new BridgeCoordinatorPredepositHarness();
         _resetInitializableStorageSlot();
         coordinator.initialize(share, admin);
 
