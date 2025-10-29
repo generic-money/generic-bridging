@@ -88,13 +88,17 @@ abstract contract BaseBridgeCoordinator is
 
     /**
      * @notice Structure representing the data for a bridge operation
-     * @param omnichainSender The sender address on the source chain (as bytes32)
-     * @param omnichainRecipient The recipient address on the destination chain (as bytes32)
+     * @param sender The sender address on the source chain (as bytes32)
+     * @param recipient The recipient address on the destination chain (as bytes32)
+     * @param sourceWhitelabel The whitelabeled share token address on the source chain (as bytes32)
+     * @param destinationWhitelabel The whitelabeled share token address on the destination chain (as bytes32)
      * @param amount The amount of tokens to bridge
      */
     struct BridgeMessage {
-        bytes32 omnichainSender;
-        bytes32 omnichainRecipient;
+        bytes32 sender;
+        bytes32 recipient;
+        bytes32 sourceWhitelabel;
+        bytes32 destinationWhitelabel;
         uint256 amount;
     }
 
