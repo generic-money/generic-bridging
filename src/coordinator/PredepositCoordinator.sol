@@ -37,12 +37,14 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @notice Struct representing a blockchain configuration for predeposit operations
      * @param state The current state of predeposits for this chain
      * @param chainId The chain ID of the destination chain
+     * @param whitelabel The whitelabeled share token address for this chain, or zero for native share token
      * @param predeposits Mapping of owner addresses to remote recipient addresses to predeposit amounts
      * @param totalPredeposits The total amount of shares predeposited for this chain
      */
     struct PredepositChain {
         PredepositState state;
         uint256 chainId;
+        bytes32 whitelabel;
         mapping(address owner => mapping(bytes32 remoteRecipient => uint256 amount)) predeposits;
         uint256 totalPredeposits;
     }
@@ -115,6 +117,12 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @param chainId The chain ID assigned to the nickname
      */
     event ChainIdAssignedToNickname(bytes32 indexed chainNickname, uint256 chainId);
+    /**
+     * @notice Emitted when a whitelabeled share address is assigned to a nickname for a specific chain
+     * @param chainNickname The nickname of the chain
+     * @param whitelabel The address of the whitelabeled share token
+     */
+    event WhitelabelAssignedToNickname(bytes32 indexed chainNickname, bytes32 indexed whitelabel);
 
     /**
      * @notice Thrown when predeposits are not enabled for the specified chain nickname
@@ -187,7 +195,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         chain.predeposits[onBehalf][remoteRecipient] += amount;
         chain.totalPredeposits += amount;
 
-        _restrictTokens(msg.sender, amount);
+        _restrictTokens(address(0), msg.sender, amount);
         emit Predeposited(chainNickname, msg.sender, onBehalf, remoteRecipient, amount);
     }
 
@@ -223,10 +231,16 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         delete chain.predeposits[owner][remoteRecipient];
         chain.totalPredeposits -= amount;
 
-        bytes memory bridgeMessageData = encodeBridgeMessage(encodeOmnichainAddress(owner), remoteRecipient, amount);
-        messageId = _dispatchMessage(bridgeType, chainId, bridgeMessageData, bridgeParams);
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: encodeOmnichainAddress(owner),
+            recipient: remoteRecipient,
+            sourceWhitelabel: encodeOmnichainAddress(address(0)),
+            destinationWhitelabel: chain.whitelabel,
+            amount: amount
+        });
+        messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams);
 
-        emit BridgedOut(msg.sender, owner, remoteRecipient, amount, messageId);
+        emit BridgedOut(msg.sender, owner, remoteRecipient, amount, messageId, bridgeMessage);
         emit PredepositBridgedOut(chainNickname, messageId);
     }
 
@@ -236,11 +250,13 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @param chainNickname The nickname of the chain where the predeposit was made
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param recipient The address on this chain to receive the withdrawn shares
+     * @param whitelabel The whitelabeled share token address, or zero address for native share token
      */
     function withdrawPredeposit(
         bytes32 chainNickname,
         bytes32 remoteRecipient,
-        address recipient
+        address recipient,
+        address whitelabel
     )
         external
         nonReentrant
@@ -254,7 +270,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         delete chain.predeposits[msg.sender][remoteRecipient];
         chain.totalPredeposits -= amount;
 
-        _releaseTokens(recipient, amount);
+        _releaseTokens(whitelabel, recipient, amount);
         emit PredepositWithdrawn(chainNickname, msg.sender, remoteRecipient, recipient, amount);
     }
 
@@ -278,10 +294,12 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @dev Should be called only after chain adapters are registered in BridgeCoordinator
      * @param chainNickname The nickname of the chain to enable predeposits dispatch for
      * @param chainId The chain ID of the destination chain
+     * @param whitelabel The address of the whitelabeled share token for this chain, zero for share token
      */
     function enablePredepositsDispatch(
         bytes32 chainNickname,
-        uint256 chainId
+        uint256 chainId,
+        bytes32 whitelabel
     )
         external
         onlyRole(PREDEPOSIT_MANAGER_ROLE)
@@ -290,10 +308,14 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         require(chain.state == PredepositState.ENABLED, Predeposit_InvalidStateTransition());
         require(chain.chainId == 0, Predeposit_ChainIdAlreadySet());
         require(chainId != 0, Predeposit_ChainIdZero());
+
         chain.state = PredepositState.DISPATCHED;
         chain.chainId = chainId;
+        chain.whitelabel = whitelabel;
+
         emit PredepositStateChanged(chainNickname, PredepositState.DISPATCHED);
         emit ChainIdAssignedToNickname(chainNickname, chainId);
+        emit WhitelabelAssignedToNickname(chainNickname, whitelabel);
     }
 
     /**
@@ -325,6 +347,23 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         require(chainId != 0, Predeposit_ChainIdZero());
         chain.chainId = chainId;
         emit ChainIdAssignedToNickname(chainNickname, chainId);
+    }
+
+    /**
+     * @notice Sets the whitelabeled share address for the specified chain nickname
+     * @param chainNickname The nickname of the chain to set the whitelabeled share address for
+     * @param whitelabel The address of the whitelabeled share token
+     */
+    function setWhitelabelForNickname(
+        bytes32 chainNickname,
+        bytes32 whitelabel
+    )
+        external
+        onlyRole(PREDEPOSIT_MANAGER_ROLE)
+    {
+        PredepositChain storage chain = _getPredepositCoordinatorStorage().chain[chainNickname];
+        chain.whitelabel = whitelabel;
+        emit WhitelabelAssignedToNickname(chainNickname, whitelabel);
     }
 
     // ========================================
@@ -379,5 +418,15 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     function getTotalPredeposits(bytes32 chainNickname) external view returns (uint256) {
         PredepositCoordinatorStorage storage $ = _getPredepositCoordinatorStorage();
         return $.chain[chainNickname].totalPredeposits;
+    }
+
+    /**
+     * @notice Gets the whitelabeled share address assigned to the specified chain nickname
+     * @param chainNickname The nickname of the chain to get the whitelabeled share address for
+     * @return The whitelabeled share address assigned to the specified chain nickname
+     */
+    function getWhitelabelForNickname(bytes32 chainNickname) external view returns (bytes32) {
+        PredepositCoordinatorStorage storage $ = _getPredepositCoordinatorStorage();
+        return $.chain[chainNickname].whitelabel;
     }
 }
