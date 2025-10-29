@@ -4,6 +4,28 @@ pragma solidity 0.8.29;
 import { BridgeCoordinator, IBridgeAdapter } from "../../src/coordinator/BridgeCoordinator.sol";
 
 contract BridgeCoordinatorHarness is BridgeCoordinator {
+    struct LastRestrictCall {
+        address whitelabel;
+        address owner;
+        uint256 amount;
+    }
+    LastRestrictCall public lastRestrictCall;
+
+    function _restrictShares(address whitelabel, address owner, uint256 amount) internal override {
+        lastRestrictCall = LastRestrictCall({ whitelabel: whitelabel, owner: owner, amount: amount });
+    }
+
+    struct LastReleaseCall {
+        address whitelabel;
+        address receiver;
+        uint256 amount;
+    }
+    LastReleaseCall public lastReleaseCall;
+
+    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal override {
+        lastReleaseCall = LastReleaseCall({ whitelabel: whitelabel, receiver: receiver, amount: amount });
+    }
+
     function exposed_initializableStorageSlot() external pure returns (bytes32) {
         return _initializableStorageSlot();
     }

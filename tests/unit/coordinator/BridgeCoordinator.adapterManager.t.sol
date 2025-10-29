@@ -5,7 +5,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 
 import { AdapterManager, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
 
-import { BridgeCoordinatorTest } from "../BridgeCoordinator.t.sol";
+import { BridgeCoordinatorTest } from "./BridgeCoordinator.t.sol";
 
 abstract contract BridgeCoordinator_AdapterManager_Test is BridgeCoordinatorTest {
     address manager = makeAddr("manager");

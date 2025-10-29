@@ -5,10 +5,10 @@ import { Test } from "forge-std/Test.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import { BridgeCoordinator, IBridgeAdapter, IERC20 } from "../../src/coordinator/BridgeCoordinator.sol";
-import { Bytes32AddressLib } from "../../src/utils/Bytes32AddressLib.sol";
+import { BridgeCoordinator, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
-import { BridgeCoordinatorHarness } from "../harness/BridgeCoordinatorHarness.sol";
+import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
 using Bytes32AddressLib for address;
 using Bytes32AddressLib for bytes32;
@@ -49,9 +49,6 @@ abstract contract BridgeCoordinatorTest is Test {
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), abi.encode(messageId));
-
-        vm.mockCall(share, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
-        vm.mockCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
 
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);

@@ -15,6 +15,14 @@ contract BridgeCoordinatorL1Harness is BridgeCoordinatorL1 {
         return _initializableStorageSlot();
     }
 
+    function exposed_restrictShares(address whitelabel, address owner, uint256 amount) external {
+        _restrictShares(whitelabel, owner, amount);
+    }
+
+    function exposed_releaseShares(address whitelabel, address receiver, uint256 amount) external {
+        _releaseShares(whitelabel, receiver, amount);
+    }
+
     function workaround_setOutboundLocalBridgeAdapter(uint16 bridgeType, address adapter) external {
         bridgeTypes[bridgeType].local.adapter = IBridgeAdapter(adapter);
     }
