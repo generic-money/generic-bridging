@@ -119,7 +119,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         });
         messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams);
 
-        _restrictTokens(sourceWhitelabel, msg.sender, amount);
+        _restrictShares(sourceWhitelabel, msg.sender, amount);
 
         emit BridgedOut(msg.sender, onBehalf, remoteRecipient, amount, messageId, bridgeMessage);
     }
@@ -193,7 +193,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
 
         require(recipient != address(0), BridgeMessage_InvalidRecipient());
         require(amount > 0, BridgeMessage_InvalidAmount());
-        _releaseTokens(decodeOmnichainAddress(message.destinationWhitelabel), recipient, amount);
+        _releaseShares(decodeOmnichainAddress(message.destinationWhitelabel), recipient, amount);
         emit BridgedIn(message.sender, recipient, amount, messageId, message);
     }
 

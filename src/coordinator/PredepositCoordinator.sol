@@ -195,7 +195,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         chain.predeposits[onBehalf][remoteRecipient] += amount;
         chain.totalPredeposits += amount;
 
-        _restrictTokens(address(0), msg.sender, amount);
+        _restrictShares(address(0), msg.sender, amount);
         emit Predeposited(chainNickname, msg.sender, onBehalf, remoteRecipient, amount);
     }
 
@@ -270,7 +270,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         delete chain.predeposits[msg.sender][remoteRecipient];
         chain.totalPredeposits -= amount;
 
-        _releaseTokens(whitelabel, recipient, amount);
+        _releaseShares(whitelabel, recipient, amount);
         emit PredepositWithdrawn(chainNickname, msg.sender, remoteRecipient, recipient, amount);
     }
 
