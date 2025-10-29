@@ -2,6 +2,7 @@
 pragma solidity 0.8.29;
 
 import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
+import { BridgeMessage, Message, MessageType } from "./Message.sol";
 
 abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
     /**

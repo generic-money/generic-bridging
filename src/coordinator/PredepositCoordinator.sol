@@ -2,7 +2,7 @@
 pragma solidity 0.8.29;
 
 import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
-import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
+import { BridgeMessageCoordinator, BridgeMessage } from "./BridgeMessageCoordinator.sol";
 
 /**
  * @title PredepositCoordinator

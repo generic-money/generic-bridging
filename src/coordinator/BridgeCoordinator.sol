@@ -8,6 +8,7 @@ import { AdapterManager } from "./AdapterManager.sol";
 import { EmergencyManager } from "./EmergencyManager.sol";
 import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
 import { IWhitelabeledShare } from "../interfaces/IWhitelabeledShare.sol";
+import { Message, MessageType } from "./Message.sol";
 
 /**
  * @title BridgeCoordinator
