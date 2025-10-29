@@ -212,16 +212,18 @@ abstract contract BaseBridgeCoordinator is
     /**
      * @notice Restricts tokens when bridging out
      * @dev Virtual function that inheriting contracts can override to implement burn/lock logic
+     * @param whitelabel The whitelabeled share token address, or zero address for native share token
      * @param owner The address that owns the tokens to be restricted
      * @param amount The amount of tokens to restrict
      */
-    function _restrictTokens(address owner, uint256 amount) internal virtual;
+    function _restrictTokens(address whitelabel, address owner, uint256 amount) internal virtual;
 
     /**
      * @notice Releases tokens when bridging in
      * @dev Virtual function that inheriting contracts can override to implement mint/unlock logic
+     * @param whitelabel The whitelabeled share token address, or zero address for native share token
      * @param receiver The address that should receive the released tokens
      * @param amount The amount of tokens to release
      */
-    function _releaseTokens(address receiver, uint256 amount) internal virtual;
+    function _releaseTokens(address whitelabel, address receiver, uint256 amount) internal virtual;
 }
