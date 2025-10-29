@@ -30,7 +30,7 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
      * @param owner The address that owns the shares to be restricted
      * @param amount The amount of shares to restrict
      */
-    function _restrictShares(address whitelabel, address owner, uint256 amount) internal virtual override {
+    function _restrictShares(address whitelabel, address owner, uint256 amount) internal override {
         uint256 escrowBalance = IERC20(shareToken).balanceOf(address(this));
         if (whitelabel == address(0)) {
             IERC20(shareToken).safeTransferFrom(owner, address(this), amount);
@@ -49,7 +49,7 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
      * @param receiver The address that should receive the released shares
      * @param amount The amount of shares to release
      */
-    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal virtual override {
+    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal override {
         if (whitelabel == address(0)) {
             IERC20(shareToken).safeTransfer(receiver, amount);
         } else {
