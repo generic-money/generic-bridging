@@ -371,8 +371,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.deal(user, nativeFee);
         vm.startPrank(user);
         vm.recordLogs();
-        bytes32 messageId =
-            coordinator.bridge{ value: nativeFee }(BRIDGE_TYPE, CHAIN_ID_L2, remoteRecipient, amount, bridgeOptions);
+        bytes32 messageId = coordinator.bridge{ value: nativeFee }(
+            BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, amount, bridgeOptions
+        );
         vm.stopPrank();
 
         Vm.Log[] memory logs = vm.getRecordedLogs();

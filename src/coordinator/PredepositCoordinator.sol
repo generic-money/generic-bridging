@@ -37,13 +37,13 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @notice Struct representing a blockchain configuration for predeposit operations
      * @param state The current state of predeposits for this chain
      * @param chainId The chain ID of the destination chain
-     * @param predeposits Mapping of sender addresses to remote recipient addresses to predeposit amounts
+     * @param predeposits Mapping of owner addresses to remote recipient addresses to predeposit amounts
      * @param totalPredeposits The total amount of shares predeposited for this chain
      */
     struct PredepositChain {
         PredepositState state;
         uint256 chainId;
-        mapping(address sender => mapping(bytes32 remoteRecipient => uint256 amount)) predeposits;
+        mapping(address owner => mapping(bytes32 remoteRecipient => uint256 amount)) predeposits;
         uint256 totalPredeposits;
     }
 
@@ -71,11 +71,16 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @dev Emitted when users predeposit tokens for future bridging
      * @param chainNickname The nickname of the destination chain
      * @param sender The address that initiated the predeposit
+     * @param owner The owner of the predeposit on the source chain
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param amount The amount of tokens predeposited
      */
     event Predeposited(
-        bytes32 indexed chainNickname, address indexed sender, bytes32 indexed remoteRecipient, uint256 amount
+        bytes32 indexed chainNickname,
+        address sender,
+        address indexed owner,
+        bytes32 indexed remoteRecipient,
+        uint256 amount
     );
     /**
      * @notice Emitted when a predeposit has been successfully bridged out to another chain
@@ -84,16 +89,16 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      */
     event PredepositBridgedOut(bytes32 indexed chainNickname, bytes32 indexed messageId);
     /**
-     * @notice Emitted when a predeposit has been withdrawn back by the original sender
+     * @notice Emitted when a predeposit has been withdrawn back by the original owner
      * @param chainNickname The nickname of the chain where the predeposit was committed to
-     * @param sender The address that initiated the predeposit
+     * @param owner The address on this chain on whose behalf the shares are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param recipient The address on this chain to receive the withdrawn tokens
      * @param amount The amount of tokens withdrawn
      */
     event PredepositWithdrawn(
         bytes32 indexed chainNickname,
-        address indexed sender,
+        address indexed owner,
         bytes32 indexed remoteRecipient,
         address recipient,
         uint256 amount
@@ -128,6 +133,10 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      */
     error Predeposit_ChainIdAlreadySet();
     /**
+     * @notice Thrown when the on behalf parameter is zero
+     */
+    error Predeposit_ZeroOnBehalf();
+    /**
      * @notice Thrown when the remote recipient parameter is zero
      */
     error Predeposit_ZeroRemoteRecipient();
@@ -156,20 +165,30 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @notice Predeposits shares for bridging to another chain
      * @dev Restricts shares on this chain to be bridged later via bridgePredeposit
      * @param chainNickname The nickname of the destination chain
+     * @param onBehalf The address on behalf of which the predeposit is made
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param amount The amount of shares to predeposit
      */
-    function predeposit(bytes32 chainNickname, bytes32 remoteRecipient, uint256 amount) external nonReentrant {
+    function predeposit(
+        bytes32 chainNickname,
+        address onBehalf,
+        bytes32 remoteRecipient,
+        uint256 amount
+    )
+        external
+        nonReentrant
+    {
         PredepositChain storage chain = _getPredepositCoordinatorStorage().chain[chainNickname];
         require(chain.state == PredepositState.ENABLED, Predeposit_NotEnabled());
+        require(onBehalf != address(0), Predeposit_ZeroOnBehalf());
         require(remoteRecipient != bytes32(0), Predeposit_ZeroRemoteRecipient());
         require(amount > 0, Predeposit_ZeroAmount());
 
-        chain.predeposits[msg.sender][remoteRecipient] += amount;
+        chain.predeposits[onBehalf][remoteRecipient] += amount;
         chain.totalPredeposits += amount;
 
         _restrictTokens(msg.sender, amount);
-        emit Predeposited(chainNickname, msg.sender, remoteRecipient, amount);
+        emit Predeposited(chainNickname, msg.sender, onBehalf, remoteRecipient, amount);
     }
 
     /**
@@ -177,7 +196,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @dev Sends a message to release predeposited shares on destination chain
      * @param bridgeType The identifier for the bridge protocol to use (must have registered adapter)
      * @param chainNickname The nickname of the destination chain
-     * @param sender The original sender address on this chain
+     * @param owner The address on this chain on whose behalf the shares are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
      * @return messageId Unique identifier for tracking the cross-chain message
@@ -185,7 +204,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     function bridgePredeposit(
         uint16 bridgeType,
         bytes32 chainNickname,
-        address sender,
+        address owner,
         bytes32 remoteRecipient,
         bytes calldata bridgeParams
     )
@@ -198,16 +217,16 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
         require(chain.state == PredepositState.DISPATCHED, Predeposit_DispatchNotEnabled());
         uint256 chainId = chain.chainId;
         require(chainId != 0, Predeposit_ChainIdZero());
-        uint256 amount = chain.predeposits[sender][remoteRecipient];
+        uint256 amount = chain.predeposits[owner][remoteRecipient];
         require(amount > 0, Predeposit_ZeroAmount());
 
-        delete chain.predeposits[sender][remoteRecipient];
+        delete chain.predeposits[owner][remoteRecipient];
         chain.totalPredeposits -= amount;
 
-        bytes memory bridgeMessageData = encodeBridgeMessage(encodeOmnichainAddress(sender), remoteRecipient, amount);
+        bytes memory bridgeMessageData = encodeBridgeMessage(encodeOmnichainAddress(owner), remoteRecipient, amount);
         messageId = _dispatchMessage(bridgeType, chainId, bridgeMessageData, bridgeParams);
 
-        emit BridgedOut(sender, remoteRecipient, amount, messageId);
+        emit BridgedOut(msg.sender, owner, remoteRecipient, amount, messageId);
         emit PredepositBridgedOut(chainNickname, messageId);
     }
 
