@@ -19,7 +19,7 @@ import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/I
 import { LayerZeroAdapter } from "../../../src/adapters/LayerZeroAdapter.sol";
 import { BaseAdapter } from "../../../src/adapters/BaseAdapter.sol";
 import { IBridgeCoordinator } from "../../../src/interfaces/IBridgeCoordinator.sol";
-import { BaseBridgeCoordinator } from "../../../src/coordinator/BaseBridgeCoordinator.sol";
+import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Message.sol";
 
 import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
@@ -54,6 +54,8 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
     address internal owner = makeAddr("owner");
     address internal shareToken = makeAddr("shareToken");
     address internal refundAddress = makeAddr("refundAddress");
+    address internal srcWhitelabel = address(0);
+    bytes32 internal destWhitelabel = bytes32(0);
 
     uint16 internal constant EID_L1 = 1;
     uint16 internal constant EID_L2 = 2;
@@ -219,14 +221,14 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         uint256 amount = 42 ether;
 
         // Encode the bridge message exactly as BridgeCoordinator expects.
-        BaseBridgeCoordinator.BridgeMessage memory bridgeMessage = BaseBridgeCoordinator.BridgeMessage({
-            omnichainSender: coordinator.encodeOmnichainAddress(remoteUser),
-            omnichainRecipient: coordinator.encodeOmnichainAddress(recipient),
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: coordinator.encodeOmnichainAddress(remoteUser),
+            recipient: coordinator.encodeOmnichainAddress(recipient),
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+            destinationWhitelabel: destWhitelabel,
             amount: amount
         });
-        BaseBridgeCoordinator.Message memory decodedMessage = BaseBridgeCoordinator.Message({
-            messageType: BaseBridgeCoordinator.MessageType.BRIDGE, data: abi.encode(bridgeMessage)
-        });
+        Message memory decodedMessage = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
 
         bytes memory messageData = abi.encode(decodedMessage);
         bytes32 messageId = keccak256("lz-inbound"); // Mock data in the messageId
@@ -341,14 +343,14 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         uint256 amount = 77 ether;
 
         bytes32 remoteRecipient = coordinator.encodeOmnichainAddress(remoteRecipientAddress);
-        BaseBridgeCoordinator.BridgeMessage memory bridgeMessage = BaseBridgeCoordinator.BridgeMessage({
-            omnichainSender: coordinator.encodeOmnichainAddress(user),
-            omnichainRecipient: remoteRecipient,
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: coordinator.encodeOmnichainAddress(user),
+            recipient: remoteRecipient,
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+            destinationWhitelabel: destWhitelabel,
             amount: amount
         });
-        BaseBridgeCoordinator.Message memory message = BaseBridgeCoordinator.Message({
-            messageType: BaseBridgeCoordinator.MessageType.BRIDGE, data: abi.encode(bridgeMessage)
-        });
+        Message memory message = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
 
         bytes memory bridgeOptions = buildReceiveOptions(200_000);
         uint256 nativeFee = l1Adapter.estimateBridgeFee(CHAIN_ID_L2, abi.encode(message), bridgeOptions);
@@ -372,7 +374,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.startPrank(user);
         vm.recordLogs();
         bytes32 messageId = coordinator.bridge{ value: nativeFee }(
-            BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, amount, bridgeOptions
+            BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeOptions
         );
         vm.stopPrank();
 

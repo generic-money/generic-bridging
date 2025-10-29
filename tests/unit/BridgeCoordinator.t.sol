@@ -6,8 +6,12 @@ import { Test } from "forge-std/Test.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import { BridgeCoordinator, IBridgeAdapter, IERC20 } from "../../src/coordinator/BridgeCoordinator.sol";
+import { Bytes32AddressLib } from "../../src/utils/Bytes32AddressLib.sol";
 
 import { BridgeCoordinatorHarness } from "../harness/BridgeCoordinatorHarness.sol";
+
+using Bytes32AddressLib for address;
+using Bytes32AddressLib for bytes32;
 
 abstract contract BridgeCoordinatorTest is Test {
     BridgeCoordinatorHarness coordinator;
@@ -15,15 +19,17 @@ abstract contract BridgeCoordinatorTest is Test {
     address share = makeAddr("share");
     address admin = makeAddr("admin");
     address sender = makeAddr("sender");
-    bytes32 remoteSender = bytes32(uint256(uint160(makeAddr("remoteSender"))));
+    bytes32 remoteSender = makeAddr("remoteSender").toBytes32WithLowAddress();
     address recipient = makeAddr("recipient");
-    bytes32 remoteRecipient = bytes32(uint256(uint160(makeAddr("remoteRecipient"))));
+    bytes32 remoteRecipient = makeAddr("remoteRecipient").toBytes32WithLowAddress();
+    address srcWhitelabel = address(0);
+    bytes32 destWhitelabel = bytes32(0);
     bytes32 messageId = keccak256("messageId");
 
     uint16 bridgeType = 7;
     uint256 remoteChainId = 42;
     address localAdapter = makeAddr("localAdapter");
-    bytes32 remoteAdapter = bytes32(uint256(uint160(makeAddr("remoteAdapter"))));
+    bytes32 remoteAdapter = makeAddr("remoteAdapter").toBytes32WithLowAddress();
 
     function _resetInitializableStorageSlot() internal {
         // reset the Initializable storage slot to allow usage of deployed instance in tests
@@ -107,7 +113,7 @@ abstract contract BridgeCoordinator_SettleInboundBridge_Test is BridgeCoordinato
     }
 
     function test_shouldRevert_whenRemoteSenderNotRemoteAdapter_whenRemoteSenderNotInboundAdapter() public {
-        bytes32 badRemoteAdapter = bytes32(uint256(uint160(makeAddr("badRemoteAdapter"))));
+        bytes32 badRemoteAdapter = makeAddr("badRemoteAdapter").toBytes32WithLowAddress();
         coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, badRemoteAdapter, false);
 
         vm.expectRevert(BridgeCoordinator.OnlyRemoteAdapter.selector);
@@ -124,7 +130,7 @@ abstract contract BridgeCoordinator_SettleInboundBridge_Test is BridgeCoordinato
     }
 
     function test_shouldPass_whenRemoteSenderIsInboundOnlyRemoteAdapter() public {
-        bytes32 inboundOnlyRemoteAdapter = bytes32(uint256(uint160(makeAddr("inboundOnlyRemoteAdapter"))));
+        bytes32 inboundOnlyRemoteAdapter = makeAddr("inboundOnlyRemoteAdapter").toBytes32WithLowAddress();
         coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(
             bridgeType, remoteChainId, inboundOnlyRemoteAdapter, true
         );
@@ -174,13 +180,13 @@ contract BridgeCoordinator_EncodeDecodeOmnichainAddress_Test is BridgeCoordinato
     function testFuzz_shouldReturnEncodedAddress(address addr) public view {
         bytes32 oAddr = coordinator.encodeOmnichainAddress(addr);
 
-        assertEq(oAddr, bytes32(uint256(uint160(addr))));
+        assertEq(oAddr, addr.toBytes32WithLowAddress());
     }
 
     function testFuzz_shouldReturnDecodedAddress(bytes32 oAddr) public view {
         address addr = coordinator.decodeOmnichainAddress(oAddr);
 
-        assertEq(addr, address(uint160(uint256(oAddr))));
+        assertEq(addr, oAddr.toAddressFromLowBytes());
     }
 
     function testFuzz_shouldReturnSameAddress_whenEncodeThenDecode(address addr) public view {

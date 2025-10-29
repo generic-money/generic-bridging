@@ -6,11 +6,19 @@ import { Test } from "forge-std/Test.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { PredepositCoordinator, BridgeMessageCoordinator } from "../../../src/coordinator/PredepositCoordinator.sol";
+import {
+    PredepositCoordinator,
+    BridgeMessageCoordinator,
+    BridgeMessage
+} from "../../../src/coordinator/PredepositCoordinator.sol";
 import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.sol";
 import { IBridgeAdapter } from "../../../src/interfaces/IBridgeAdapter.sol";
+import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import { BridgeCoordinatorL1Harness } from "../../harness/BridgeCoordinatorL1Harness.sol";
+
+using Bytes32AddressLib for address;
+using Bytes32AddressLib for bytes32;
 
 abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
     BridgeCoordinatorL1Harness coordinator;
@@ -21,6 +29,8 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
     bytes32 remoteSender = bytes32(uint256(uint160(makeAddr("remoteSender"))));
     address recipient = makeAddr("recipient");
     bytes32 remoteRecipient = bytes32(uint256(uint160(makeAddr("remoteRecipient"))));
+    address srcWhitelabel = address(0);
+    bytes32 destWhitelabel = bytes32(0);
     bytes32 messageId = keccak256("messageId");
 
     uint16 bridgeType = 7;
@@ -191,11 +201,17 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
         address caller = makeAddr("caller");
         deal(caller, fee);
 
-        bytes memory expectedBridgeMessageData =
-            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(owner), remoteRecipient, amount);
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: owner.toBytes32WithLowAddress(),
+            recipient: remoteRecipient,
+            sourceWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+            destinationWhitelabel: destWhitelabel,
+            amount: amount
+        });
+        bytes memory expectedBridgeMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedOut(caller, owner, remoteRecipient, amount, messageId);
+        emit BridgeMessageCoordinator.BridgedOut(caller, owner, remoteRecipient, amount, messageId, bridgeMessage);
         vm.expectEmit();
         emit PredepositCoordinator.PredepositBridgedOut(chainNickname, messageId);
 
@@ -238,7 +254,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_WithdrawPredeposit_Test is
 
         vm.expectRevert(PredepositCoordinator.Predeposit_WithdrawalsNotEnabled.selector);
         vm.prank(owner);
-        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient);
+        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient, srcWhitelabel);
     }
 
     function test_shouldRevert_whenZeroAmountToWithdraw() public {
@@ -246,13 +262,13 @@ contract BridgeCoordinatorL1_PredepositCoordinator_WithdrawPredeposit_Test is
 
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroAmount.selector);
         vm.prank(owner);
-        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient);
+        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient, srcWhitelabel);
     }
 
     function test_shouldRevert_whenZeroRecipient() public {
         vm.expectRevert(PredepositCoordinator.Predeposit_ZeroRecipient.selector);
         vm.prank(owner);
-        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, address(0));
+        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, address(0), srcWhitelabel);
     }
 
     function testFuzz_shouldWithdrawPredeposit(uint256 amount) public {
@@ -267,7 +283,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_WithdrawPredeposit_Test is
         vm.expectCall(share, abi.encodeWithSelector(IERC20.transfer.selector, recipient, amount));
 
         vm.prank(owner);
-        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient);
+        coordinator.withdrawPredeposit(chainNickname, remoteRecipient, recipient, srcWhitelabel);
 
         assertEq(coordinator.getPredeposit(chainNickname, owner, remoteRecipient), 0);
         assertEq(coordinator.getTotalPredeposits(chainNickname), totalPredeposits - amount);
@@ -325,7 +341,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_EnablePredepositsDispatch_Tes
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, caller, managerRole)
         );
         vm.prank(caller);
-        coordinator.enablePredepositsDispatch(chainNickname, remoteChainId);
+        coordinator.enablePredepositsDispatch(chainNickname, remoteChainId, destWhitelabel);
     }
 
     function testFuzz_shouldRevert_whenChainInIncorrectState(uint8 state) public {
@@ -336,13 +352,13 @@ contract BridgeCoordinatorL1_PredepositCoordinator_EnablePredepositsDispatch_Tes
 
         vm.expectRevert(PredepositCoordinator.Predeposit_InvalidStateTransition.selector);
         vm.prank(manager);
-        coordinator.enablePredepositsDispatch(chainNickname, remoteChainId);
+        coordinator.enablePredepositsDispatch(chainNickname, remoteChainId, destWhitelabel);
     }
 
     function test_shouldRevert_whenChainIdIsZero() public {
         vm.expectRevert(PredepositCoordinator.Predeposit_ChainIdZero.selector);
         vm.prank(manager);
-        coordinator.enablePredepositsDispatch(chainNickname, 0);
+        coordinator.enablePredepositsDispatch(chainNickname, 0, destWhitelabel);
     }
 
     function test_shouldRevert_whenChainIdAlreadyAssigned() public {
@@ -350,7 +366,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_EnablePredepositsDispatch_Tes
 
         vm.expectRevert(PredepositCoordinator.Predeposit_ChainIdAlreadySet.selector);
         vm.prank(manager);
-        coordinator.enablePredepositsDispatch(chainNickname, remoteChainId);
+        coordinator.enablePredepositsDispatch(chainNickname, remoteChainId, destWhitelabel);
     }
 
     function testFuzz_shouldEnablePredepositsDispatch(uint256 chainId) public {
@@ -365,7 +381,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_EnablePredepositsDispatch_Tes
         emit PredepositCoordinator.ChainIdAssignedToNickname(chainNickname, chainId);
 
         vm.prank(manager);
-        coordinator.enablePredepositsDispatch(chainNickname, chainId);
+        coordinator.enablePredepositsDispatch(chainNickname, chainId, destWhitelabel);
 
         PredepositCoordinator.PredepositState state = coordinator.getChainPredepositState(chainNickname);
         assertEq(uint8(state), uint8(PredepositCoordinator.PredepositState.DISPATCHED));

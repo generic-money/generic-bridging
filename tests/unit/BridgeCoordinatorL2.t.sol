@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 
 import { IBridgeAdapter } from "../../src/coordinator/BridgeCoordinator.sol";
 import { IERC20Mintable } from "../../src/BridgeCoordinatorL2.sol";
+import { BridgeMessage } from "../../src/coordinator/Message.sol";
 
 import { BridgeCoordinatorL2Harness } from "../harness/BridgeCoordinatorL2Harness.sol";
 
@@ -20,6 +21,8 @@ abstract contract BridgeCoordinatorL2Test is Test {
     bytes32 remoteSender = bytes32(uint256(uint160(makeAddr("remoteSender"))));
     address recipient = makeAddr("recipient");
     bytes32 remoteRecipient = bytes32(uint256(uint160(makeAddr("remoteRecipient"))));
+    address srcWhitelabel = address(0);
+    bytes32 destWhitelabel = bytes32(0);
     bytes32 messageId = keccak256("messageId");
 
     uint16 bridgeType = 7;
@@ -62,10 +65,10 @@ contract BridgeCoordinatorL2_Bridge_Test is BridgeCoordinatorL2Test {
     function testFuzz_shouldBurnTokensFromSender(uint256 amount) public {
         vm.assume(amount > 0);
 
-        vm.expectCall(share, abi.encodeWithSelector(IERC20Mintable.burn.selector, sender, sender, amount));
+        vm.expectCall(share, abi.encodeWithSelector(IERC20Mintable.burn.selector, sender, address(coordinator), amount));
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, amount, "");
     }
 }
 
@@ -74,8 +77,15 @@ contract BridgeCoordinatorL2_SettleInboundBridge_Test is BridgeCoordinatorL2Test
         vm.assume(_recipient != address(0));
         vm.assume(amount > 0);
 
-        bytes memory messageData =
-            coordinator.encodeBridgeMessage(remoteSender, coordinator.encodeOmnichainAddress(_recipient), amount);
+        bytes memory messageData = coordinator.encodeBridgeMessage(
+            BridgeMessage({
+                sender: remoteSender,
+                recipient: coordinator.encodeOmnichainAddress(_recipient),
+                sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+                destinationWhitelabel: destWhitelabel,
+                amount: amount
+            })
+        );
 
         vm.expectCall(share, abi.encodeWithSelector(IERC20Mintable.mint.selector, _recipient, amount));
 
