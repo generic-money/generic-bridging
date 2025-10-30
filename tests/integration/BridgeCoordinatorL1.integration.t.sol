@@ -233,7 +233,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
 contract BridgeCoordinatorL1_Predeposit_IntegrationTest is BridgeCoordinatorL1IntegrationTest {
     bytes32 chainNickname = keccak256("super duper L2 chain");
 
-    function setUp() override public virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         vm.startPrank(user);
