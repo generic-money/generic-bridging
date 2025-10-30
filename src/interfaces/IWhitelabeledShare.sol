@@ -10,21 +10,19 @@ pragma solidity >=0.8.0;
 interface IWhitelabeledShare {
     /**
      * @notice Emitted when underlying share tokens are wrapped into whitelabeled tokens
-     * @param caller The address that initiated the wrap transaction and provided the underlying tokens
      * @param owner The address that received the newly minted whitelabeled tokens
      * @param amount The quantity of tokens wrapped (same amount of underlying tokens consumed and whitelabeled tokens
      * minted)
      */
-    event Wrapped(address indexed caller, address indexed owner, uint256 amount);
+    event Wrapped(address indexed owner, uint256 amount);
     /**
      * @notice Emitted when whitelabeled tokens are unwrapped back to underlying share tokens
-     * @param caller The address that initiated the unwrap transaction
      * @param owner The address that owned the whitelabeled tokens during the unwrap
      * @param recipient The address that received the underlying share tokens
      * @param amount The quantity of tokens unwrapped (same amount of whitelabeled tokens burned and underlying tokens
      * released)
      */
-    event Unwrapped(address indexed caller, address indexed owner, address indexed recipient, uint256 amount);
+    event Unwrapped(address indexed owner, address indexed recipient, uint256 amount);
 
     /**
      * @notice Wraps underlying share tokens into whitelabeled tokens for a specified owner
