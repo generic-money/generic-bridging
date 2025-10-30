@@ -12,7 +12,7 @@ import { BridgeMessageCoordinator, BridgeMessage } from "../../src/coordinator/B
 import { MockBridgeAdapter } from "../helper/MockBridgeAdapter.sol";
 import { MockERC20 } from "../helper/MockERC20.sol";
 
-abstract contract BridgeCoordinatorIntegrationTest is Test {
+abstract contract BridgeCoordinatorL1IntegrationTest is Test {
     BridgeCoordinatorL1 coordinator;
     MockERC20 gusd;
 
@@ -54,7 +54,7 @@ abstract contract BridgeCoordinatorIntegrationTest is Test {
     }
 }
 
-contract BridgeCoordinator_Bridge_IntegrationTest is BridgeCoordinatorIntegrationTest {
+contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1IntegrationTest {
     function test_bridge_outbound() public {
         // Fail to bridge when no adapters are set
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
@@ -223,7 +223,7 @@ contract BridgeCoordinator_Bridge_IntegrationTest is BridgeCoordinatorIntegratio
     }
 }
 
-contract BridgeCoordinator_Predeposit_IntegrationTest is BridgeCoordinatorIntegrationTest {
+contract BridgeCoordinatorL1_Predeposit_IntegrationTest is BridgeCoordinatorL1IntegrationTest {
     bytes32 chainNickname = keccak256("super duper L2 chain");
 
     function test_predeposit_dispatch() public {
