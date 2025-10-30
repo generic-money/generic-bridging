@@ -104,13 +104,17 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         );
     }
 
-    function testFuzz_shouldLockTokensFromSender(uint256 amount) public {
+    function testFuzz_shouldRestrictShareTokens(address sender, address whitelabel, uint256 amount) public {
         vm.assume(amount > 0);
-
-        vm.expectCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector, sender, address(coordinator), amount));
+        vm.assume(sender != address(0));
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, whitelabel, destWhitelabel, amount, "");
+
+        (address whitelabel_, address sender_, uint256 amount_) = coordinator.lastRestrictCall();
+        assertEq(whitelabel_, whitelabel);
+        assertEq(sender_, sender);
+        assertEq(amount_, amount);
     }
 
     function test_shouldReturnMessageId() public {
@@ -393,7 +397,7 @@ contract BridgeCoordinator_SettleInboundBridge_BridgeMessage_Test is
         assertEq(coordinator.failedMessageExecutions(messageId), failedMessageHash);
     }
 
-    function testFuzz_shouldUnlockTokens(address _recipient, uint256 amount) public {
+    function testFuzz_shouldReleaseShareToken(address _recipient, uint256 amount) public {
         vm.assume(_recipient != address(0));
         vm.assume(amount > 0);
 
@@ -401,10 +405,13 @@ contract BridgeCoordinator_SettleInboundBridge_BridgeMessage_Test is
         bridgeMessage.amount = amount;
         messageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
-        vm.expectCall(share, abi.encodeWithSelector(IERC20.transfer.selector, _recipient, amount));
-
         vm.prank(localAdapter);
         coordinator.settleInboundMessage(bridgeType, remoteChainId, remoteAdapter, messageData, messageId);
+
+        (address whitelabel_, address receiver_, uint256 amount_) = coordinator.lastReleaseCall();
+        assertEq(whitelabel_, destWhitelabel.toAddressFromLowBytes());
+        assertEq(receiver_, _recipient);
+        assertEq(amount_, amount);
     }
 
     function test_shouldEmit_BridgedIn() public {
