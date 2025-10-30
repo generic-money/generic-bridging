@@ -1,0 +1,25 @@
+# =============================
+# MAINNET
+# =============================
+
+[mainnet.bool]
+is_l1 = true
+
+[mainnet.address]
+share_token = "0x0000000000000000000000000000000000000000"
+bridging_admin = "0x0000000000000000000000000000000000000000"
+bridge_coordinator_roles_admin = "0x0000000000000000000000000000000000000000"
+layerzero_endpoint = "0x1a44076050125825900e736c501f859c50fE728c" # https://docs.layerzero.network/v2/deployments/deployed-contracts?chains=ethereum
+
+# =============================
+# SEPOLIA
+# =============================
+
+[sepolia.bool]
+is_l1 = false
+
+[sepolia.address]
+share_token = "0x0000000000000000000000000000000000000000"
+bridging_admin = "0x0000000000000000000000000000000000000000"
+bridge_coordinator_roles_admin = "0x0000000000000000000000000000000000000000"
+layerzero_endpoint = "0x6EDCE65403992e310A62460808c4b910D972f10f" # https://docs.layerzero.network/v2/deployments/deployed-contracts?chains=sepolia
