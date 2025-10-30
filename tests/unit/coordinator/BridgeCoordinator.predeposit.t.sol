@@ -272,7 +272,13 @@ contract BridgeCoordinatorL1_PredepositCoordinator_WithdrawPredeposit_Test is
         coordinator.withdrawPredeposit(chainNickname, remoteRecipient, address(0), srcWhitelabel);
     }
 
-    function testFuzz_shouldWithdrawPredeposit(address _whitelabel, address _recipient, uint256 _amount) public {
+    function testFuzz_shouldWithdrawPredeposit(
+        address _whitelabel,
+        address _recipient,
+        uint256 _amount
+    )
+        public
+    {
         uint256 totalPredeposits = type(uint256).max;
         _amount = bound(_amount, 1, totalPredeposits);
         vm.assume(_recipient != address(0));

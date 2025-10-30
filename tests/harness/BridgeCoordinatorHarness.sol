@@ -11,7 +11,7 @@ contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
     }
     LastRestrictCall public lastRestrictCall;
 
-    function _restrictShares(address whitelabel, address owner, uint256 amount) internal override virtual {
+    function _restrictShares(address whitelabel, address owner, uint256 amount) internal virtual override {
         lastRestrictCall = LastRestrictCall({ whitelabel: whitelabel, owner: owner, amount: amount });
     }
 
@@ -22,7 +22,7 @@ contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
     }
     LastReleaseCall public lastReleaseCall;
 
-    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal override virtual {
+    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal virtual override {
         lastReleaseCall = LastReleaseCall({ whitelabel: whitelabel, receiver: receiver, amount: amount });
     }
 }

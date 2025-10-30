@@ -256,7 +256,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         {
             (address inWhitelabel_, address recipient_, uint256 inAmount_) = coordinator.lastReleaseCall();
-            assertEq(inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release");
+            assertEq(
+                inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release"
+            );
             assertEq(recipient_, recipient, "recipient mismatch on release");
             assertEq(inAmount_, amount, "amount mismatch on release");
         }
@@ -391,7 +393,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         {
             (address inWhitelabel_, address recipient_, uint256 inAmount_) = coordinator.lastReleaseCall();
-            assertEq(inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release");
+            assertEq(
+                inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release"
+            );
             assertEq(recipient_, remoteRecipientAddress, "recipient mismatch on release");
             assertEq(inAmount_, amount, "amount mismatch on release");
         }
