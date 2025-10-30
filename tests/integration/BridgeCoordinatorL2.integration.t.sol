@@ -5,16 +5,17 @@ import { Test } from "forge-std/Test.sol";
 
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import { BridgeCoordinatorL1, BridgeCoordinator } from "../../src/BridgeCoordinatorL1.sol";
-import { PredepositCoordinator } from "../../src/coordinator/PredepositCoordinator.sol";
+import { BridgeCoordinatorL2, BridgeCoordinator } from "../../src/BridgeCoordinatorL2.sol";
 import { BridgeMessageCoordinator, BridgeMessage } from "../../src/coordinator/BridgeMessageCoordinator.sol";
 
 import { MockBridgeAdapter } from "../helper/MockBridgeAdapter.sol";
 import { MockERC20 } from "../helper/MockERC20.sol";
+import { MockWhitelabeledShare } from "../helper/MockWhitelabeledShare.sol";
 
-abstract contract BridgeCoordinatorL1IntegrationTest is Test {
-    BridgeCoordinatorL1 coordinator;
-    MockERC20 gusd;
+abstract contract BridgeCoordinatorL2IntegrationTest is Test {
+    BridgeCoordinatorL2 coordinator;
+    MockERC20 share;
+    MockWhitelabeledShare gusd;
 
     MockBridgeAdapter localAdapter;
     bytes32 remoteAdapter = keccak256("remote adapter");
@@ -25,42 +26,45 @@ abstract contract BridgeCoordinatorL1IntegrationTest is Test {
     address relayer = makeAddr("relayer");
     uint256 chainId = 42;
     uint16 bridgeType = 1;
-    address srcWhitelabel = address(0);
-    bytes32 destWhitelabel = bytes32(0);
+    bytes32 destWhitelabel = keccak256("destWhitelabel");
     bytes32 messageId = keccak256("messageId");
 
     function setUp() public virtual {
-        coordinator = BridgeCoordinatorL1(
-            address(new TransparentUpgradeableProxy(address(new BridgeCoordinatorL1()), address(this), ""))
+        coordinator = BridgeCoordinatorL2(
+            address(new TransparentUpgradeableProxy(address(new BridgeCoordinatorL2()), address(this), ""))
         );
-        gusd = new MockERC20(18);
-        coordinator.initialize(address(gusd), address(this));
+        share = new MockERC20(18);
+        gusd = new MockWhitelabeledShare(address(share));
+        coordinator.initialize(address(share), address(this));
 
         coordinator.grantRole(coordinator.ADAPTER_MANAGER_ROLE(), address(this));
-        coordinator.grantRole(coordinator.PREDEPOSIT_MANAGER_ROLE(), address(this));
 
         localAdapter = new MockBridgeAdapter(bridgeType, address(coordinator));
 
-        deal(address(gusd), user, 1_000_000e18);
-        vm.prank(user);
+        deal(address(share), user, 1_000_000e18, true);
+        vm.startPrank(user);
+        share.approve(address(gusd), type(uint256).max);
+        gusd.wrap(user, 1_000_000e18);
         gusd.approve(address(coordinator), type(uint256).max);
+        vm.stopPrank();
 
         deal(user, 10 ether);
         deal(relayer, 10 ether);
 
-        vm.label(address(coordinator), "BridgeCoordinatorL1");
+        vm.label(address(coordinator), "BridgeCoordinatorL2");
         vm.label(address(controller), "Controller");
+        vm.label(address(share), "share");
         vm.label(address(gusd), "GUSD");
     }
 }
 
-contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1IntegrationTest {
+contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2IntegrationTest {
     function test_bridge_outbound() public {
         // Fail to bridge when no adapters are set
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
         vm.prank(user);
         coordinator.bridge{ value: 1 ether }(
-            bridgeType, chainId, user, remoteUser, srcWhitelabel, destWhitelabel, 100e18, "bridge data"
+            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
         // Setup local adapter
@@ -72,7 +76,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
         vm.prank(user);
         coordinator.bridge{ value: 1 ether }(
-            bridgeType, chainId, user, remoteUser, srcWhitelabel, destWhitelabel, 100e18, "bridge data"
+            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
         // Setup remote adapter
@@ -81,19 +85,27 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
 
         // Bridge successfully
+        uint256 preTotalSupply = share.totalSupply();
+        assertEq(share.totalSupply(), preTotalSupply);
+        assertEq(gusd.totalSupply(), preTotalSupply);
+        assertEq(gusd.balanceOf(user), preTotalSupply);
+
         localAdapter.returnMessageId(messageId);
         vm.prank(user);
         bytes32 msgId = coordinator.bridge{ value: 1 ether }(
-            bridgeType, chainId, user, remoteUser, srcWhitelabel, destWhitelabel, 100e18, "bridge data"
+            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
+        assertEq(share.totalSupply(), preTotalSupply - 100e18);
+        assertEq(gusd.totalSupply(), preTotalSupply - 100e18);
+        assertEq(gusd.balanceOf(user), preTotalSupply - 100e18);
+
         assertEq(msgId, messageId);
-        assertEq(gusd.balanceOf(address(coordinator)), 100e18);
         bytes memory expectedMessage = coordinator.encodeBridgeMessage(
             BridgeMessage({
                 sender: coordinator.encodeOmnichainAddress(user),
                 recipient: remoteUser,
-                sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+                sourceWhitelabel: coordinator.encodeOmnichainAddress(address(gusd)),
                 destinationWhitelabel: destWhitelabel,
                 amount: 100e18
             })
@@ -113,14 +125,13 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
     }
 
     function test_bridge_inbound() public {
-        deal(address(gusd), address(coordinator), 100e18); // Pre-fund coordinator for inbound bridge
         address receiver = makeAddr("receiver");
         bytes memory messageData = coordinator.encodeBridgeMessage(
             BridgeMessage({
                 sender: remoteUser,
                 recipient: coordinator.encodeOmnichainAddress(receiver),
-                sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
-                destinationWhitelabel: destWhitelabel,
+                sourceWhitelabel: coordinator.encodeOmnichainAddress(address(0)),
+                destinationWhitelabel: coordinator.encodeOmnichainAddress(address(gusd)),
                 amount: 100e18
             })
         );
@@ -137,13 +148,21 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         coordinator.swapOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
 
         // Settle successfully
+        uint256 preTotalSupply = share.totalSupply();
+        assertEq(share.totalSupply(), preTotalSupply);
+        assertEq(gusd.totalSupply(), preTotalSupply);
+        assertEq(gusd.balanceOf(receiver), 0);
+
         vm.prank(address(localAdapter));
         coordinator.settleInboundMessage(bridgeType, chainId, remoteAdapter, messageData, messageId);
 
+        assertEq(share.totalSupply(), preTotalSupply + 100e18);
+        assertEq(gusd.totalSupply(), preTotalSupply + 100e18);
         assertEq(gusd.balanceOf(receiver), 100e18);
-        assertEq(gusd.balanceOf(address(coordinator)), 0);
 
         // Fail to settle and store failed message execution for rollback test
+        gusd.setRevertNextCall(true);
+
         vm.prank(address(localAdapter));
         coordinator.settleInboundMessage(bridgeType, chainId, remoteAdapter, messageData, messageId);
 
@@ -155,8 +174,8 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         BridgeMessage memory message = BridgeMessage({
             sender: remoteUser,
             recipient: coordinator.encodeOmnichainAddress(user),
-            sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
-            destinationWhitelabel: destWhitelabel,
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(address(gusd)),
+            destinationWhitelabel: coordinator.encodeOmnichainAddress(address(gusd)),
             amount: 100e18
         });
         bytes memory messageData = coordinator.encodeBridgeMessage(message);
@@ -167,7 +186,9 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
         coordinator.swapOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
 
-        // Store failed message execution (not enough funds)
+        // Fail to settle and store failed message execution for rollback test
+        gusd.setRevertNextCall(true);
+
         vm.prank(address(localAdapter));
         coordinator.settleInboundMessage(bridgeType, chainId, remoteAdapter, messageData, messageId);
 
@@ -203,8 +224,8 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         BridgeMessage memory expectedRollbackMessage = BridgeMessage({
             sender: bytes32(0),
             recipient: remoteUser,
-            sourceWhitelabel: destWhitelabel,
-            destinationWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(address(gusd)),
+            destinationWhitelabel: coordinator.encodeOmnichainAddress(address(gusd)),
             amount: 100e18
         });
         bytes memory expectedRollbackMessageData = coordinator.encodeBridgeMessage(expectedRollbackMessage);
@@ -220,133 +241,5 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         assertEq(rollbackMessageData, expectedRollbackMessageData, "message mismatch");
         assertEq(refundAddress, relayer, "refund address mismatch");
         assertEq(bridgeParams, "rollback bridge data", "bridge params mismatch");
-    }
-}
-
-contract BridgeCoordinatorL1_Predeposit_IntegrationTest is BridgeCoordinatorL1IntegrationTest {
-    bytes32 chainNickname = keccak256("super duper L2 chain");
-
-    function test_predeposit_dispatch() public {
-        // Fail to predeposit before enabling
-        vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
-        vm.prank(user);
-        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
-
-        // Enable predeposits for a chain
-        coordinator.enablePredeposits(chainNickname);
-        assertEq(
-            uint8(coordinator.getChainPredepositState(chainNickname)),
-            uint8(PredepositCoordinator.PredepositState.ENABLED)
-        );
-
-        // Predeposit successfully
-        vm.prank(user);
-        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
-
-        assertEq(gusd.balanceOf(address(coordinator)), 100e18);
-        assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 100e18);
-
-        // Predeposit more successfully
-        vm.prank(user);
-        coordinator.predeposit(chainNickname, user, remoteUser, 300e18);
-
-        assertEq(gusd.balanceOf(address(coordinator)), 400e18);
-        assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 400e18);
-
-        // Enable dispatch for a chain
-        coordinator.enablePredepositsDispatch(chainNickname, chainId, destWhitelabel);
-        assertEq(
-            uint8(coordinator.getChainPredepositState(chainNickname)),
-            uint8(PredepositCoordinator.PredepositState.DISPATCHED)
-        );
-        assertEq(coordinator.getChainIdForNickname(chainNickname), chainId);
-
-        // Fail to withdraw after enabling dispatch
-        vm.expectRevert(PredepositCoordinator.Predeposit_WithdrawalsNotEnabled.selector);
-        vm.prank(user);
-        coordinator.withdrawPredeposit(chainNickname, remoteUser, user, srcWhitelabel);
-
-        // Fail to dispatch when no adapters are set
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        vm.prank(relayer);
-        coordinator.bridgePredeposit{ value: 1 ether }(bridgeType, chainNickname, user, remoteUser, "");
-
-        // Setup adapters
-        assertFalse(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
-        coordinator.setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-        coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
-        coordinator.swapOutboundLocalBridgeAdapter(bridgeType, localAdapter);
-        coordinator.swapOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
-        assertTrue(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
-
-        // Dispatch successfully
-        localAdapter.returnMessageId(messageId);
-        vm.prank(relayer);
-        bytes32 msgId =
-            coordinator.bridgePredeposit{ value: 1 ether }(bridgeType, chainNickname, user, remoteUser, "bridge data");
-
-        assertEq(msgId, messageId);
-        assertEq(gusd.balanceOf(address(coordinator)), 400e18);
-        assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 0);
-        bytes memory expectedMessage = coordinator.encodeBridgeMessage(
-            BridgeMessage({
-                sender: coordinator.encodeOmnichainAddress(user),
-                recipient: remoteUser,
-                sourceWhitelabel: coordinator.encodeOmnichainAddress(address(0)),
-                destinationWhitelabel: destWhitelabel,
-                amount: 400e18
-            })
-        );
-        (
-            uint256 chainId_,
-            bytes32 remoteAdapter_,
-            bytes memory message,
-            address refundAddress,
-            bytes memory bridgeParams
-        ) = localAdapter.lastBridgeCall();
-        assertEq(chainId_, chainId, "chain id mismatch");
-        assertEq(remoteAdapter_, remoteAdapter, "remote adapter mismatch");
-        assertEq(message, expectedMessage, "message mismatch");
-        assertEq(refundAddress, relayer, "refund address mismatch");
-        assertEq(bridgeParams, "bridge data", "bridge params mismatch");
-
-        // Fail to predeposit after enabling dispatch
-        vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
-        vm.prank(user);
-        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
-    }
-
-    function test_predeposit_withdraw() public {
-        // Enable predeposits for a chain
-        coordinator.enablePredeposits(chainNickname);
-
-        // Predeposit successfully
-        vm.prank(user);
-        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
-
-        // Enable withdrawals for a chain
-        coordinator.enablePredepositsWithdraw(chainNickname);
-        assertEq(
-            uint8(coordinator.getChainPredepositState(chainNickname)),
-            uint8(PredepositCoordinator.PredepositState.WITHDRAWN)
-        );
-        assertEq(coordinator.getChainIdForNickname(chainNickname), 0);
-
-        // Fail to dispatch after enabling withdrawals
-        vm.expectRevert(PredepositCoordinator.Predeposit_DispatchNotEnabled.selector);
-        vm.prank(relayer);
-        coordinator.bridgePredeposit{ value: 1 ether }(bridgeType, chainNickname, user, remoteUser, "");
-
-        // Withdraw successfully
-        vm.prank(user);
-        coordinator.withdrawPredeposit(chainNickname, remoteUser, user, srcWhitelabel);
-
-        assertEq(gusd.balanceOf(address(coordinator)), 0);
-        assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 0);
-
-        // Fail to predeposit after enabling withdrawals
-        vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);
-        vm.prank(user);
-        coordinator.predeposit(chainNickname, user, remoteUser, 100e18);
     }
 }
