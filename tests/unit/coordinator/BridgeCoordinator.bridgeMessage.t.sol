@@ -4,7 +4,6 @@ pragma solidity 0.8.29;
 import { BridgeCoordinator, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
 import { BridgeMessageCoordinator, BridgeMessage } from "../../../src/coordinator/BridgeMessageCoordinator.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
-import { IWhitelabeledShare } from "../../../src/interfaces/IWhitelabeledShare.sol";
 
 import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "./BridgeCoordinator.t.sol";
 

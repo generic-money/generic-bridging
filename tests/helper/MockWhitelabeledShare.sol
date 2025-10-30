@@ -16,7 +16,10 @@ contract MockWhitelabeledShare is IWhitelabeledShare, ERC20 {
 
     function wrap(address owner, uint256 amount) external {
         require(!revertNextCall, "MockWhitelabeledShare: revertNextCall is set");
-        IERC20(shareToken).transferFrom(msg.sender, address(this), amount);
+        require(
+            IERC20(shareToken).transferFrom(msg.sender, address(this), amount),
+            "MockWhitelabeledShare: transferFrom failed"
+        );
         _mint(owner, amount);
         emit Wrapped(owner, amount);
     }
@@ -25,7 +28,7 @@ contract MockWhitelabeledShare is IWhitelabeledShare, ERC20 {
         require(!revertNextCall, "MockWhitelabeledShare: revertNextCall is set");
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, amount);
         _burn(owner, amount);
-        IERC20(shareToken).transfer(recipient, amount);
+        require(IERC20(shareToken).transfer(recipient, amount), "MockWhitelabeledShare: transfer failed");
         emit Unwrapped(owner, recipient, amount);
     }
 
