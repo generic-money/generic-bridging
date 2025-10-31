@@ -38,21 +38,27 @@ contract Deploy is Script, Config {
         bool isL1 = config.get("is_l1").toBool();
         console.log("Is L1:", isL1);
 
-        _loadConfig("./addrs/deployments.toml", true);
+        address coordinatorAdapterManager = config.get("bridge_coordinator_adapter_manager").toAddress();
+        require(coordinatorAdapterManager != address(0), "adapter manager not set");
+        console.log("Coordinator adapter manager address:", coordinatorAdapterManager);
 
-        console.log("----------");
-        console.log("New deployments:\n");
+        address coordinatorPredepositManager;
+        if (isL1) {
+            coordinatorPredepositManager = config.get("bridge_coordinator_predeposit_manager").toAddress();
+            require(coordinatorPredepositManager != address(0), "predeposit manager not set");
+            console.log("Coordinator predeposit manager address:", coordinatorPredepositManager);
+        }
+
+        _loadConfig("./addrs/deployments.toml", true);
 
         vm.createSelectFork(config.getRpcUrl());
         vm.startBroadcast();
 
-        // Deploy BridgeCoordinator
+        // Deploy BridgeCoordinator with caller as initial admin
         address coordinatorImpl = isL1 ? address(new BridgeCoordinatorL1()) : address(new BridgeCoordinatorL2());
         address coordinator = address(
             new TransparentUpgradeableProxy(
-                coordinatorImpl,
-                admin,
-                abi.encodeCall(BridgeCoordinator.initialize, (shareToken, coordinatorRolesAdmin))
+                coordinatorImpl, admin, abi.encodeCall(BridgeCoordinator.initialize, (shareToken, msg.sender))
             )
         );
 
@@ -65,6 +71,26 @@ contract Deploy is Script, Config {
             layerZeroAdapter = address(new LayerZeroAdapter(BridgeCoordinator(coordinator), admin, lzEndpoint));
         }
 
+        // Grant ADAPTER_MANAGER_ROLE
+        BridgeCoordinator(coordinator)
+            .grantRole(BridgeCoordinator(coordinator).ADAPTER_MANAGER_ROLE(), coordinatorAdapterManager);
+        console.log("BridgeCoordinator ADAPTER_MANAGER_ROLE granted to:", coordinatorAdapterManager);
+
+        // Grant PREDEPOSIT_MANAGER_ROLE
+        if (isL1 && coordinatorPredepositManager != address(0)) {
+            BridgeCoordinatorL1(coordinator)
+                .grantRole(BridgeCoordinatorL1(coordinator).PREDEPOSIT_MANAGER_ROLE(), coordinatorPredepositManager);
+            console.log("BridgeCoordinatorL1 PREDEPOSIT_MANAGER_ROLE granted to:", coordinatorPredepositManager);
+        }
+
+        // Transfer DEFAULT_ADMIN_ROLE
+        if (msg.sender != coordinatorRolesAdmin) {
+            BridgeCoordinator(coordinator).grantRole(BridgeCoordinator(coordinator).DEFAULT_ADMIN_ROLE(), msg.sender);
+            BridgeCoordinator(coordinator)
+                .revokeRole(BridgeCoordinator(coordinator).DEFAULT_ADMIN_ROLE(), coordinatorRolesAdmin);
+        }
+        console.log("BridgeCoordinator DEFAULT_ADMIN_ROLE granted to:", coordinatorRolesAdmin);
+
         vm.stopBroadcast();
 
         // Save addresses to deployments.toml
@@ -73,6 +99,9 @@ contract Deploy is Script, Config {
         if (lzEndpoint != address(0)) config.set("layerzero_adapter", layerZeroAdapter);
 
         // Log deployed addresses
+        console.log("----------");
+        console.log("New deployments:\n");
+
         console.log("LineaBridgeAdapter deployed at:", lineaAdapter);
         console.log(isL1 ? "BridgeCoordinatorL1 deployed at" : "BridgeCoordinatorL2 deployed at", coordinator);
         if (lzEndpoint != address(0)) {
@@ -105,9 +134,6 @@ contract Deploy is Script, Config {
         string memory desc = isL1 ? "BridgeCoordinatorL1 address" : "BridgeCoordinatorL2 address";
         console.log(desc, coordinator);
 
-        console.log("----------");
-        console.log("New deployments:\n");
-
         vm.createSelectFork(config.getRpcUrl());
         vm.startBroadcast();
 
@@ -120,6 +146,9 @@ contract Deploy is Script, Config {
         config.set("layerzero_adapter", adapter);
 
         // Log deployed address
+        console.log("----------");
+        console.log("New deployments:\n");
+
         console.log("LayerZeroAdapter deployed at:", adapter);
     }
 }
