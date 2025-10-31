@@ -116,8 +116,8 @@ abstract contract BridgeCoordinator is
         override
         returns (bytes32 messageId)
     {
-        IBridgeAdapter adapter = bridgeTypes[bridgeType].local.adapter;
-        bytes32 remoteAdapter = bridgeTypes[bridgeType].remote[chainId].adapter;
+        IBridgeAdapter adapter = outboundLocalBridgeAdapter(bridgeType);
+        bytes32 remoteAdapter = outboundRemoteBridgeAdapter(bridgeType, chainId);
         require(address(adapter) != address(0), NoLocalBridgeAdapter());
         require(remoteAdapter != bytes32(0), NoRemoteBridgeAdapter());
 
@@ -146,10 +146,8 @@ abstract contract BridgeCoordinator is
         external
         nonReentrant
     {
-        LocalConfig storage localConfig = bridgeTypes[bridgeType].local;
-        require(msg.sender == address(localConfig.adapter) || localConfig.isInboundOnly[msg.sender], OnlyLocalAdapter());
-        RemoteConfig storage remoteConfig = bridgeTypes[bridgeType].remote[chainId];
-        require(remoteSender == remoteConfig.adapter || remoteConfig.isInboundOnly[remoteSender], OnlyRemoteAdapter());
+        require(isLocalBridgeAdapter(bridgeType, msg.sender), OnlyLocalAdapter());
+        require(isRemoteBridgeAdapter(bridgeType, chainId, remoteSender), OnlyRemoteAdapter());
 
         emit MessageIn(bridgeType, chainId, messageId, messageData);
 
