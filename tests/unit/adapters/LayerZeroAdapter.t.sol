@@ -80,7 +80,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         remoteAdapterId = bytes32(uint256(uint160(address(l2Adapter))));
 
         vm.startPrank(owner);
+        coordinator.workaround_setIsLocalBridgeAdapter(BRIDGE_TYPE, address(l1Adapter), true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(BRIDGE_TYPE, address(l1Adapter));
+        coordinator.workaround_setIsRemoteBridgeAdapter(BRIDGE_TYPE, CHAIN_ID_L2, remoteAdapterId, true);
         coordinator.workaround_setOutboundRemoteBridgeAdapter(BRIDGE_TYPE, CHAIN_ID_L2, remoteAdapterId);
         l1Adapter.setRemoteEndpointConfig(CHAIN_ID_L2, EID_L2, remoteAdapterId);
         l2Adapter.setRemoteEndpointConfig(CHAIN_ID_L2, EID_L1, bytes32(uint256(uint160(address(l1Adapter)))));
@@ -380,8 +382,8 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         this._assertPacketFields(packet, abi.encode(message), messageId, bridgeOptions);
 
         vm.startPrank(owner);
-        coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(BRIDGE_TYPE, address(l2Adapter), true);
-        coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(
+        coordinator.workaround_setIsLocalBridgeAdapter(BRIDGE_TYPE, address(l2Adapter), true);
+        coordinator.workaround_setIsRemoteBridgeAdapter(
             BRIDGE_TYPE, CHAIN_ID_L2, bytes32(uint256(uint160(address(l1Adapter)))), true
         );
         vm.stopPrank();

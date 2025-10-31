@@ -22,35 +22,18 @@ abstract contract BridgeCoordinator_BridgeMessage_Test is BridgeCoordinatorTest 
 }
 
 contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_BridgeMessage_Test {
-    function test_shouldRevert_whenNoLocalAdapter() public {
+    function test_shouldRevert_whenNoOutboundLocalAdapter() public {
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
 
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundLocalBridgeAdapter.selector);
         coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
-    function test_shouldRevert_whenNoRemoteAdapter() public {
+    function test_shouldRevert_whenNoOutboundRemoteAdapter() public {
         // remove remote adapter
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, bytes32(0));
 
-        vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
-    }
-
-    function test_shouldRevert_whenOnlyInboundLocalAdapter() public {
-        coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
-        coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
-    }
-
-    function test_shouldRevert_whenOnlyInboundRemoteAdapter() public {
-        // remove remote adapter
-        coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, bytes32(0));
-        coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
-
-        vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundRemoteBridgeAdapter.selector);
         coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
@@ -164,35 +147,18 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         coordinator.workaround_setFailedMessageExecution(originalMessageId, failedMessagesHash);
     }
 
-    function test_shouldRevert_whenNoLocalAdapter() public {
+    function test_shouldRevert_whenNoOutboundLocalAdapter() public {
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
 
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundLocalBridgeAdapter.selector);
         coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
     }
 
-    function test_shouldRevert_whenNoRemoteAdapter() public {
+    function test_shouldRevert_whenNoOutboundRemoteAdapter() public {
         // remove remote adapter
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, bytes32(0));
 
-        vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
-        coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
-    }
-
-    function test_shouldRevert_whenOnlyInboundLocalAdapter() public {
-        coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
-        coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
-    }
-
-    function test_shouldRevert_whenOnlyInboundRemoteAdapter() public {
-        // remove remote adapter
-        coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, bytes32(0));
-        coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
-
-        vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundRemoteBridgeAdapter.selector);
         coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
     }
 

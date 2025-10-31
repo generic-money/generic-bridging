@@ -50,7 +50,9 @@ abstract contract BridgeCoordinatorTest is Test {
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), abi.encode(messageId));
 
+        coordinator.workaround_setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
+        coordinator.workaround_setIsRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
     }
 }
@@ -100,40 +102,22 @@ contract BridgeCoordinator_Initialize_Test is BridgeCoordinatorTest {
 abstract contract BridgeCoordinator_SettleInboundBridge_Test is BridgeCoordinatorTest {
     bytes messageData;
 
-    function test_shouldRevert_whenCallerNotLocalAdapter_whenCallerNotInboundAdapter() public {
+    function test_shouldRevert_whenCallerNotLocalAdapter() public {
         address badCaller = makeAddr("badCaller");
-        coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, badCaller, false);
+        coordinator.workaround_setIsLocalBridgeAdapter(bridgeType, badCaller, false);
 
         vm.expectRevert(BridgeCoordinator.OnlyLocalAdapter.selector);
         vm.prank(badCaller);
         coordinator.settleInboundMessage(bridgeType, remoteChainId, remoteAdapter, messageData, messageId);
     }
 
-    function test_shouldRevert_whenRemoteSenderNotRemoteAdapter_whenRemoteSenderNotInboundAdapter() public {
+    function test_shouldRevert_whenRemoteSenderNotRemoteAdapter() public {
         bytes32 badRemoteAdapter = makeAddr("badRemoteAdapter").toBytes32WithLowAddress();
-        coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, badRemoteAdapter, false);
+        coordinator.workaround_setIsRemoteBridgeAdapter(bridgeType, remoteChainId, badRemoteAdapter, false);
 
         vm.expectRevert(BridgeCoordinator.OnlyRemoteAdapter.selector);
         vm.prank(localAdapter);
         coordinator.settleInboundMessage(bridgeType, remoteChainId, badRemoteAdapter, messageData, messageId);
-    }
-
-    function test_shouldPass_whenCallerIsInboundOnlyLocalAdapter() public {
-        address inboundOnlyLocalAdapter = makeAddr("inboundOnlyLocalAdapter");
-        coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, inboundOnlyLocalAdapter, true);
-
-        vm.prank(inboundOnlyLocalAdapter);
-        coordinator.settleInboundMessage(bridgeType, remoteChainId, remoteAdapter, messageData, messageId);
-    }
-
-    function test_shouldPass_whenRemoteSenderIsInboundOnlyRemoteAdapter() public {
-        bytes32 inboundOnlyRemoteAdapter = makeAddr("inboundOnlyRemoteAdapter").toBytes32WithLowAddress();
-        coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(
-            bridgeType, remoteChainId, inboundOnlyRemoteAdapter, true
-        );
-
-        vm.prank(localAdapter);
-        coordinator.settleInboundMessage(bridgeType, remoteChainId, inboundOnlyRemoteAdapter, messageData, messageId);
     }
 
     function test_shouldEmit_MessageIn() public {

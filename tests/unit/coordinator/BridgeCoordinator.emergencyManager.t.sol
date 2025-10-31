@@ -28,16 +28,32 @@ contract BridgeCoordinator_EmergencyManager_ForceRemoveLocalBridgeAdapter_Test i
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, caller, managerRole)
         );
         vm.prank(caller);
-        coordinator.forceRemoveLocalBridgeAdapter(bridgeType);
+        coordinator.forceRemoveLocalBridgeAdapter(bridgeType, localAdapter);
     }
 
-    function test_shouldRemoveLocalAdapter() public {
-        assertEq(address(coordinator.localBridgeAdapter(bridgeType)), localAdapter);
+    function test_shouldRemoveLocalAdapter_whenOutbound() public {
+        assertEq(address(coordinator.outboundLocalBridgeAdapter(bridgeType)), localAdapter);
+        assertTrue(coordinator.isLocalBridgeAdapter(bridgeType, localAdapter));
 
         vm.prank(manager);
-        coordinator.forceRemoveLocalBridgeAdapter(bridgeType);
+        coordinator.forceRemoveLocalBridgeAdapter(bridgeType, localAdapter);
 
-        assertEq(address(coordinator.localBridgeAdapter(bridgeType)), address(0));
+        assertEq(address(coordinator.outboundLocalBridgeAdapter(bridgeType)), address(0));
+        assertFalse(coordinator.isLocalBridgeAdapter(bridgeType, localAdapter));
+    }
+
+    function test_shouldRemoveLocalAdapter_whenNotOutbound() public {
+        address outbound = makeAddr("outboundLocalAdapter");
+        coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, outbound);
+
+        assertEq(address(coordinator.outboundLocalBridgeAdapter(bridgeType)), outbound);
+        assertTrue(coordinator.isLocalBridgeAdapter(bridgeType, localAdapter));
+
+        vm.prank(manager);
+        coordinator.forceRemoveLocalBridgeAdapter(bridgeType, localAdapter);
+
+        assertEq(address(coordinator.outboundLocalBridgeAdapter(bridgeType)), outbound);
+        assertFalse(coordinator.isLocalBridgeAdapter(bridgeType, localAdapter));
     }
 }
 
@@ -51,63 +67,31 @@ contract BridgeCoordinator_EmergencyManager_ForceRemoveRemoteBridgeAdapter_Test 
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, caller, managerRole)
         );
         vm.prank(caller);
-        coordinator.forceRemoveRemoteBridgeAdapter(bridgeType, remoteChainId);
+        coordinator.forceRemoveRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
     }
 
-    function test_shouldRemoveRemoteAdapter() public {
-        assertEq(coordinator.remoteBridgeAdapter(bridgeType, remoteChainId), remoteAdapter);
+    function test_shouldRemoveRemoteAdapter_whenOutbound() public {
+        assertEq(coordinator.outboundRemoteBridgeAdapter(bridgeType, remoteChainId), remoteAdapter);
+        assertTrue(coordinator.isRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter));
 
         vm.prank(manager);
-        coordinator.forceRemoveRemoteBridgeAdapter(bridgeType, remoteChainId);
+        coordinator.forceRemoveRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
 
-        assertEq(coordinator.remoteBridgeAdapter(bridgeType, remoteChainId), bytes32(0));
-    }
-}
-
-contract BridgeCoordinator_EmergencyManager_ForceRemoveInboundOnlyLocalBridgeAdapter_Test is
-    BridgeCoordinator_EmergencyManager_Test
-{
-    function test_shouldRevert_whenCallerNotEmergencyRole() public {
-        address caller = makeAddr("notEmergency");
-
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, caller, managerRole)
-        );
-        vm.prank(caller);
-        coordinator.forceRemoveInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter);
+        assertEq(coordinator.outboundRemoteBridgeAdapter(bridgeType, remoteChainId), bytes32(0));
+        assertFalse(coordinator.isRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter));
     }
 
-    function test_shouldRemoveInboundOnlyLocalAdapter() public {
-        coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-        assertTrue(coordinator.isInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter));
+    function test_shouldRemoveRemoteAdapter_whenNotOutbound() public {
+        bytes32 outbound = bytes32(uint256(uint160(makeAddr("outboundRemoteAdapter"))));
+        coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, outbound);
+
+        assertEq(coordinator.outboundRemoteBridgeAdapter(bridgeType, remoteChainId), outbound);
+        assertTrue(coordinator.isRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter));
 
         vm.prank(manager);
-        coordinator.forceRemoveInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter);
+        coordinator.forceRemoveRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
 
-        assertFalse(coordinator.isInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter));
-    }
-}
-
-contract BridgeCoordinator_EmergencyManager_ForceRemoveInboundOnlyRemoteBridgeAdapter_Test is
-    BridgeCoordinator_EmergencyManager_Test
-{
-    function test_shouldRevert_whenCallerNotEmergencyRole() public {
-        address caller = makeAddr("notEmergency");
-
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, caller, managerRole)
-        );
-        vm.prank(caller);
-        coordinator.forceRemoveInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
-    }
-
-    function test_shouldRemoveInboundOnlyRemoteAdapter() public {
-        coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
-        assertTrue(coordinator.isInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter));
-
-        vm.prank(manager);
-        coordinator.forceRemoveInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
-
-        assertFalse(coordinator.isInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter));
+        assertEq(coordinator.outboundRemoteBridgeAdapter(bridgeType, remoteChainId), outbound);
+        assertFalse(coordinator.isRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter));
     }
 }

@@ -52,13 +52,13 @@ abstract contract BridgeCoordinator is
      */
     error ZeroAdmin();
     /**
-     * @notice Thrown when no local bridge adapter is configured for the specified bridge type
+     * @notice Thrown when no outbound local bridge adapter is configured for the specified bridge type
      */
-    error NoLocalBridgeAdapter();
+    error NoOutboundLocalBridgeAdapter();
     /**
-     * @notice Thrown when no remote bridge adapter is configured for the bridge type and chain ID
+     * @notice Thrown when no outbound remote bridge adapter is configured for the bridge type and chain ID
      */
-    error NoRemoteBridgeAdapter();
+    error NoOutboundRemoteBridgeAdapter();
     /**
      * @notice Thrown when caller is not the expected local bridge adapter
      */
@@ -118,8 +118,8 @@ abstract contract BridgeCoordinator is
     {
         IBridgeAdapter adapter = outboundLocalBridgeAdapter(bridgeType);
         bytes32 remoteAdapter = outboundRemoteBridgeAdapter(bridgeType, chainId);
-        require(address(adapter) != address(0), NoLocalBridgeAdapter());
-        require(remoteAdapter != bytes32(0), NoRemoteBridgeAdapter());
+        require(address(adapter) != address(0), NoOutboundLocalBridgeAdapter());
+        require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());
 
         messageId = adapter.bridge{ value: msg.value }(chainId, remoteAdapter, messageData, msg.sender, bridgeParams);
 
