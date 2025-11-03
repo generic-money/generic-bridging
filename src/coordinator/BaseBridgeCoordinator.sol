@@ -16,9 +16,9 @@ abstract contract BaseBridgeCoordinator is
     IBridgeCoordinator
 {
     /**
-     * @notice The address of the share token that this coordinator manages
+     * @notice The address of the Generic unit that this coordinator manages
      */
-    address public shareToken;
+    address public genericUnit;
 
     /**
      * @notice Configuration for the local bridge adapter
@@ -179,20 +179,20 @@ abstract contract BaseBridgeCoordinator is
         returns (bytes32 messageId);
 
     /**
-     * @notice Restricts shares when bridging out
+     * @notice Restricts units when bridging out
      * @dev Virtual function that inheriting contracts can override to implement burn/lock logic
-     * @param whitelabel The whitelabeled share token address, or zero address for native share token
-     * @param owner The address that owns the shares to be restricted
-     * @param amount The amount of shares to restrict
+     * @param whitelabel The whitelabeled unit token address, or zero address for native unit token
+     * @param owner The address that owns the units to be restricted
+     * @param amount The amount of units to restrict
      */
-    function _restrictShares(address whitelabel, address owner, uint256 amount) internal virtual;
+    function _restrictUnits(address whitelabel, address owner, uint256 amount) internal virtual;
 
     /**
-     * @notice Releases shares when bridging in
+     * @notice Releases units when bridging in
      * @dev Virtual function that inheriting contracts can override to implement mint/unlock logic
-     * @param whitelabel The whitelabeled share token address, or zero address for native share token
-     * @param receiver The address that should receive the released shares
-     * @param amount The amount of shares to release
+     * @param whitelabel The whitelabeled unit token address, or zero address for native unit token
+     * @param receiver The address that should receive the released units
+     * @param amount The amount of units to release
      */
-    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal virtual;
+    function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal virtual;
 }

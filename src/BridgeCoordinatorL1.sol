@@ -30,30 +30,30 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
      * @param owner The address that owns the shares to be restricted
      * @param amount The amount of shares to restrict
      */
-    function _restrictShares(address whitelabel, address owner, uint256 amount) internal override {
-        uint256 escrowBalance = IERC20(shareToken).balanceOf(address(this));
+    function _restrictUnits(address whitelabel, address owner, uint256 amount) internal override {
+        uint256 escrowBalance = IERC20(genericUnit).balanceOf(address(this));
         if (whitelabel == address(0)) {
-            IERC20(shareToken).safeTransferFrom(owner, address(this), amount);
+            IERC20(genericUnit).safeTransferFrom(owner, address(this), amount);
         } else {
             IWhitelabeledUnit(whitelabel).unwrap(owner, address(this), amount);
         }
 
-        // Note: Sanity check that the expected amount of shares were actually transferred
-        // Whitelabeled shares could have faulty implementations that do not transfer the correct amount
-        require(IERC20(shareToken).balanceOf(address(this)) == escrowBalance + amount, IncorrectEscrowBalance());
+        // Note: Sanity check that the expected amount of units were actually transferred
+        // Whitelabeled units could have faulty implementations that do not transfer the correct amount
+        require(IERC20(genericUnit).balanceOf(address(this)) == escrowBalance + amount, IncorrectEscrowBalance());
     }
 
     /**
-     * @notice Unlock shares when bridging in
-     * @param whitelabel The whitelabeled share token address, or zero address for native share token
-     * @param receiver The address that should receive the released shares
-     * @param amount The amount of shares to release
+     * @notice Unlock units when bridging in
+     * @param whitelabel The whitelabeled unit token address, or zero address for native unit token
+     * @param receiver The address that should receive the released units
+     * @param amount The amount of units to release
      */
-    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal override {
+    function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal override {
         if (whitelabel == address(0)) {
-            IERC20(shareToken).safeTransfer(receiver, amount);
+            IERC20(genericUnit).safeTransfer(receiver, amount);
         } else {
-            IERC20(shareToken).forceApprove(address(whitelabel), amount);
+            IERC20(genericUnit).forceApprove(address(whitelabel), amount);
             IWhitelabeledUnit(whitelabel).wrap(receiver, amount);
         }
     }

@@ -16,7 +16,7 @@ using Bytes32AddressLib for bytes32;
 abstract contract BridgeCoordinatorTest is Test {
     BridgeCoordinatorHarness coordinator;
 
-    address share = makeAddr("share");
+    address unit = makeAddr("unit");
     address admin = makeAddr("admin");
     address sender = makeAddr("sender");
     bytes32 remoteSender = makeAddr("remoteSender").toBytes32WithLowAddress();
@@ -39,7 +39,7 @@ abstract contract BridgeCoordinatorTest is Test {
     function setUp() public virtual {
         coordinator = new BridgeCoordinatorHarness();
         _resetInitializableStorageSlot();
-        coordinator.initialize(share, admin);
+        coordinator.initialize(unit, admin);
 
         vm.mockCall(
             localAdapter,
@@ -71,31 +71,31 @@ contract BridgeCoordinator_Initialize_Test is BridgeCoordinatorTest {
         _resetInitializableStorageSlot();
     }
 
-    function testFuzz_shouldSetShareTokenAndAdmin(address _share, address _admin) public {
-        vm.assume(_share != address(0));
+    function testFuzz_shouldSetUnitTokenAndAdmin(address _unit, address _admin) public {
+        vm.assume(_unit != address(0));
         vm.assume(_admin != address(0));
 
-        coordinator.initialize(_share, _admin);
+        coordinator.initialize(_unit, _admin);
 
-        assertEq(coordinator.shareToken(), _share);
+        assertEq(coordinator.genericUnit(), _unit);
         assertTrue(coordinator.hasRole(coordinator.DEFAULT_ADMIN_ROLE(), _admin));
     }
 
-    function test_shouldRevertIfZeroShareToken() public {
-        vm.expectRevert(BridgeCoordinator.ZeroShareToken.selector);
+    function test_shouldRevertIfZeroUnitToken() public {
+        vm.expectRevert(BridgeCoordinator.ZeroGenericUnit.selector);
         coordinator.initialize(address(0), admin);
     }
 
     function test_shouldRevertIfZeroAdmin() public {
         vm.expectRevert(BridgeCoordinator.ZeroAdmin.selector);
-        coordinator.initialize(share, address(0));
+        coordinator.initialize(unit, address(0));
     }
 
     function test_shouldRevertIfAlreadyInitialized() public {
-        coordinator.initialize(share, admin);
+        coordinator.initialize(unit, admin);
 
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        coordinator.initialize(share, admin);
+        coordinator.initialize(unit, admin);
     }
 }
 

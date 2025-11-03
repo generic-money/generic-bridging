@@ -9,9 +9,9 @@ import { Message, MessageType } from "./Message.sol";
 
 /**
  * @title BridgeCoordinator
- * @notice Coordinates cross-chain bridging of share tokens through multiple bridge protocols
+ * @notice Coordinates cross-chain bridging of Generic unit tokens through multiple bridge protocols
  * @dev Base implementation that handles routing between bridge adapters and manages cross-chain operations.
- * Inheriting contracts should override _restrictTokens and _releaseTokens for custom token logic.
+ * Inheriting contracts should override _restrictUnits and _releaseUnits for custom token logic.
  */
 abstract contract BridgeCoordinator is
     BaseBridgeCoordinator,
@@ -44,9 +44,9 @@ abstract contract BridgeCoordinator is
     event MessageExecutionFailed(bytes32 indexed messageId);
 
     /**
-     * @notice Thrown when share token address is zero during initialization
+     * @notice Thrown when Generic unit token address is zero during initialization
      */
-    error ZeroShareToken();
+    error ZeroGenericUnit();
     /**
      * @notice Thrown when admin address is zero during initialization
      */
@@ -85,15 +85,15 @@ abstract contract BridgeCoordinator is
     }
 
     /**
-     * @notice Initializes the BridgeCoordinator with share token and admin
+     * @notice Initializes the BridgeCoordinator with Generic unit token and admin
      * @dev Can only be called once due to initializer modifier
-     * @param _shareToken The address of the share token to be managed by this coordinator
+     * @param _genericUnit The address of the Generic unit token to be managed by this coordinator
      * @param _admin The address to be granted DEFAULT_ADMIN_ROLE for managing the coordinator
      */
-    function initialize(address _shareToken, address _admin) external initializer {
-        require(_shareToken != address(0), ZeroShareToken());
+    function initialize(address _genericUnit, address _admin) external initializer {
+        require(_genericUnit != address(0), ZeroGenericUnit());
         require(_admin != address(0), ZeroAdmin());
-        shareToken = _shareToken;
+        genericUnit = _genericUnit;
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 

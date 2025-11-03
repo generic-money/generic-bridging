@@ -38,7 +38,7 @@ contract BridgeCoordinatorL2_RestrictShares_Test is BridgeCoordinatorL2Test {
 
         vm.expectCall(unit, abi.encodeWithSelector(IERC20Mintable.burn.selector, owner, address(coordinator), amount));
 
-        coordinator.exposed_restrictShares(address(0), owner, amount);
+        coordinator.exposed_restrictUnits(address(0), owner, amount);
     }
 
     function testFuzz_shouldUnwrapAndBurnTokens_whenWhitelabel(address owner, uint256 amount) public {
@@ -48,7 +48,7 @@ contract BridgeCoordinatorL2_RestrictShares_Test is BridgeCoordinatorL2Test {
         vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledUnit.unwrap, (owner, address(coordinator), amount)));
         vm.expectCall(unit, abi.encodeCall(IERC20Mintable.burn, (address(coordinator), address(coordinator), amount)));
 
-        coordinator.exposed_restrictShares(whitelabel, owner, amount);
+        coordinator.exposed_restrictUnits(whitelabel, owner, amount);
     }
 }
 
@@ -59,7 +59,7 @@ contract BridgeCoordinatorL2_ReleaseShares_Test is BridgeCoordinatorL2Test {
 
         vm.expectCall(unit, abi.encodeWithSelector(IERC20Mintable.mint.selector, recipient, amount));
 
-        coordinator.exposed_releaseShares(address(0), recipient, amount);
+        coordinator.exposed_releaseUnits(address(0), recipient, amount);
     }
 
     function testFuzz_shouldMintAndWrapTokens_whenWhitelabel(address recipient, uint256 amount) public {
@@ -69,6 +69,6 @@ contract BridgeCoordinatorL2_ReleaseShares_Test is BridgeCoordinatorL2Test {
         vm.expectCall(unit, abi.encodeCall(IERC20Mintable.mint, (address(coordinator), amount)));
         vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledUnit.wrap, (recipient, amount)));
 
-        coordinator.exposed_releaseShares(whitelabel, recipient, amount);
+        coordinator.exposed_releaseUnits(whitelabel, recipient, amount);
     }
 }

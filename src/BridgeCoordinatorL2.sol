@@ -23,12 +23,12 @@ contract BridgeCoordinatorL2 is BridgeCoordinator {
      * @param owner The address that owns the shares to be burned
      * @param amount The amount of shares to burn
      */
-    function _restrictShares(address whitelabel, address owner, uint256 amount) internal override {
+    function _restrictUnits(address whitelabel, address owner, uint256 amount) internal override {
         if (whitelabel == address(0)) {
-            IERC20Mintable(shareToken).burn(owner, address(this), amount);
+            IERC20Mintable(genericUnit).burn(owner, address(this), amount);
         } else {
             IWhitelabeledUnit(whitelabel).unwrap(owner, address(this), amount);
-            IERC20Mintable(shareToken).burn(address(this), address(this), amount);
+            IERC20Mintable(genericUnit).burn(address(this), address(this), amount);
         }
 
         // Note: Burn would fail if unwrapping did not transfer the correct amount
@@ -41,12 +41,12 @@ contract BridgeCoordinatorL2 is BridgeCoordinator {
      * @param receiver The address that should receive the newly minted shares
      * @param amount The amount of shares to mint
      */
-    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal override {
+    function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal override {
         if (whitelabel == address(0)) {
-            IERC20Mintable(shareToken).mint(receiver, amount);
+            IERC20Mintable(genericUnit).mint(receiver, amount);
         } else {
-            IERC20Mintable(shareToken).mint(address(this), amount);
-            IERC20(shareToken).forceApprove(address(whitelabel), amount);
+            IERC20Mintable(genericUnit).mint(address(this), amount);
+            IERC20(genericUnit).forceApprove(address(whitelabel), amount);
             IWhitelabeledUnit(whitelabel).wrap(receiver, amount);
         }
     }

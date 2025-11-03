@@ -43,7 +43,7 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
 
         vm.expectCall(unit, abi.encodeCall(IERC20.transferFrom, (owner, address(coordinator), amount)));
 
-        coordinator.exposed_restrictShares(address(0), owner, amount);
+        coordinator.exposed_restrictUnits(address(0), owner, amount);
     }
 
     function testFuzz_shouldUnwrapAndLockShares_whenWhitelabel(address owner, uint256 amount) public {
@@ -57,7 +57,7 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
 
         vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledUnit.unwrap, (owner, address(coordinator), amount)));
 
-        coordinator.exposed_restrictShares(whitelabel, owner, amount);
+        coordinator.exposed_restrictUnits(whitelabel, owner, amount);
     }
 
     function test_shouldRevert_whenIncorrectAmountUpdated() public {
@@ -70,7 +70,7 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
         vm.mockCalls(unit, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
 
         vm.expectRevert(BridgeCoordinatorL1.IncorrectEscrowBalance.selector);
-        coordinator.exposed_restrictShares(address(0), owner, amount);
+        coordinator.exposed_restrictUnits(address(0), owner, amount);
     }
 }
 
@@ -81,7 +81,7 @@ contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
 
         vm.expectCall(unit, abi.encodeCall(IERC20.transfer, (recipient, amount)));
 
-        coordinator.exposed_releaseShares(address(0), recipient, amount);
+        coordinator.exposed_releaseUnits(address(0), recipient, amount);
     }
 
     function testFuzz_shouldUnlockAndWrapShares_whenWhitelabel(address recipient, uint256 amount) public {
@@ -90,6 +90,6 @@ contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
 
         vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledUnit.wrap, (recipient, amount)));
 
-        coordinator.exposed_releaseShares(whitelabel, recipient, amount);
+        coordinator.exposed_releaseUnits(whitelabel, recipient, amount);
     }
 }
