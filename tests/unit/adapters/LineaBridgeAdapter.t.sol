@@ -150,7 +150,7 @@ contract LineaBridgeAdapterTest is Test {
 
     function test_setMessageService_updatesMappingsAndEmitsEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit BaseAdapter.MessageServiceConfigured(L2_CHAIN_ID, address(0), address(messageService));
+        emit LineaBridgeAdapter.MessageServiceConfigured(L2_CHAIN_ID, address(0), address(messageService));
 
         vm.prank(admin);
         adapter.setMessageService(address(messageService), L2_CHAIN_ID);
@@ -160,7 +160,7 @@ contract LineaBridgeAdapterTest is Test {
 
         MockMessageService replacement = new MockMessageService();
         vm.expectEmit(true, true, true, true);
-        emit BaseAdapter.MessageServiceConfigured(L2_CHAIN_ID, address(messageService), address(replacement));
+        emit LineaBridgeAdapter.MessageServiceConfigured(L2_CHAIN_ID, address(messageService), address(replacement));
 
         vm.prank(admin);
         adapter.setMessageService(address(replacement), L2_CHAIN_ID);

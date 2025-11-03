@@ -28,6 +28,25 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
      */
     error FeeRefundFailed();
 
+    /**
+     * @notice Emitted whenever the message service endpoint configured for a chain changes.
+     * @param chainId The L2 chain identifier associated with the message service.
+     * @param previousService The previously configured message service address.
+     * @param newService The newly configured message service address.
+     */
+    event MessageServiceConfigured(
+        uint256 indexed chainId, address indexed previousService, address indexed newService
+    );
+
+    /**
+     * @notice Reverse lookup for authorised message services back to their origin chain id.
+     */
+    mapping(address messageService => uint256 chainId) public messageServiceToChainId;
+    /**
+     * @notice Mapping from chain id to the trusted message service contract.
+     */
+    mapping(uint256 chainId => address messageService) public chainIdToMessageService;
+
     constructor(IBridgeCoordinator _coordinator, address owner) BaseAdapter(_coordinator, owner) { }
 
     /// @inheritdoc BaseAdapter
@@ -82,5 +101,25 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
     /// @inheritdoc BaseAdapter
     function bridgeType() public pure override returns (uint16) {
         return BridgeTypes.LINEA;
+    }
+
+    /**
+     * @notice Updates the message service endpoint used for cross-chain messaging.
+     * @dev Callable only by owner.
+     * @param _messageService The new message service contract.
+     */
+    function setMessageService(address _messageService, uint256 _chainId) external onlyOwner {
+        require(_messageService != address(0), InvalidZeroAddress());
+
+        // We need to clean up the previous messageService if it exists
+        address previousService = chainIdToMessageService[_chainId];
+
+        emit MessageServiceConfigured(_chainId, previousService, _messageService);
+
+        if (previousService != address(0)) {
+            messageServiceToChainId[previousService] = 0;
+        }
+        messageServiceToChainId[_messageService] = _chainId;
+        chainIdToMessageService[_chainId] = _messageService;
     }
 }

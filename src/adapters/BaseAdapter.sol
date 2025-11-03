@@ -23,27 +23,9 @@ abstract contract BaseAdapter is IBridgeAdapter, Ownable2Step {
     error UnauthorizedCaller();
 
     /**
-     * @notice Emitted whenever the message service endpoint configured for a chain changes.
-     * @param chainId The L2 chain identifier associated with the message service.
-     * @param previousService The previously configured message service address.
-     * @param newService The newly configured message service address.
-     */
-    event MessageServiceConfigured(
-        uint256 indexed chainId, address indexed previousService, address indexed newService
-    );
-
-    /**
      * @notice The bridge coordinator contract that this adapter is connected to
      */
     IBridgeCoordinator public immutable coordinator;
-    /**
-     * @notice Reverse lookup for authorised message services back to their origin chain id.
-     */
-    mapping(address messageService => uint256 chainId) public messageServiceToChainId;
-    /**
-     * @notice Mapping from chain id to the trusted message service contract.
-     */
-    mapping(uint256 chainId => address messageService) public chainIdToMessageService;
 
     /**
      * @notice Counter for the amount of bridging transactions done by the adapter
@@ -66,6 +48,10 @@ abstract contract BaseAdapter is IBridgeAdapter, Ownable2Step {
         return address(coordinator);
     }
 
+    /**
+     * @notice Returns the bridge type identifier for this adapter implementation
+     * @return The uint16 bridge type identifier
+     */
     function bridgeType() public view virtual returns (uint16);
 
     /**
@@ -76,26 +62,6 @@ abstract contract BaseAdapter is IBridgeAdapter, Ownable2Step {
     function getMessageId(uint256 chainId) public view returns (bytes32) {
         // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encodePacked(chainId, bridgeType(), block.timestamp, nonce));
-    }
-
-    /**
-     * @notice Updates the message service endpoint used for cross-chain messaging.
-     * @dev Callable only by owner.
-     * @param _messageService The new message service contract.
-     */
-    function setMessageService(address _messageService, uint256 _chainId) external onlyOwner {
-        require(_messageService != address(0), InvalidZeroAddress());
-
-        // We need to clean up the previous messageService if it exists
-        address previousService = chainIdToMessageService[_chainId];
-
-        emit MessageServiceConfigured(_chainId, previousService, _messageService);
-
-        if (previousService != address(0)) {
-            messageServiceToChainId[previousService] = 0;
-        }
-        messageServiceToChainId[_messageService] = _chainId;
-        chainIdToMessageService[_chainId] = _messageService;
     }
 
     /// @inheritdoc IBridgeAdapter
