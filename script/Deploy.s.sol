@@ -19,9 +19,9 @@ contract Deploy is Script, Config {
     function run() external {
         _loadConfig("./addrs/external.toml", false);
 
-        address shareToken = config.get("share_token").toAddress();
-        require(shareToken != address(0), "share token not set");
-        console.log("Share token address:", shareToken);
+        address unitToken = config.get("generic_unit_token").toAddress();
+        require(unitToken != address(0), "unit token not set");
+        console.log("Unit token address:", unitToken);
 
         address admin = config.get("bridging_admin").toAddress();
         require(admin != address(0), "admin not set");
@@ -58,7 +58,7 @@ contract Deploy is Script, Config {
         address coordinatorImpl = isL1 ? address(new BridgeCoordinatorL1()) : address(new BridgeCoordinatorL2());
         address coordinator = address(
             new TransparentUpgradeableProxy(
-                coordinatorImpl, admin, abi.encodeCall(BridgeCoordinator.initialize, (shareToken, msg.sender))
+                coordinatorImpl, admin, abi.encodeCall(BridgeCoordinator.initialize, (unitToken, msg.sender))
             )
         );
 
