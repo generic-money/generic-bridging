@@ -3,14 +3,14 @@ pragma solidity 0.8.29;
 
 import { Test } from "forge-std/Test.sol";
 
-import { BridgeCoordinatorL1, IERC20, IWhitelabeledShare } from "../../src/BridgeCoordinatorL1.sol";
+import { BridgeCoordinatorL1, IERC20, IWhitelabeledUnit } from "../../src/BridgeCoordinatorL1.sol";
 
 import { BridgeCoordinatorL1Harness } from "../harness/BridgeCoordinatorL1Harness.sol";
 
 abstract contract BridgeCoordinatorL1Test is Test {
     BridgeCoordinatorL1Harness coordinator;
 
-    address share = makeAddr("share");
+    address unit = makeAddr("unit");
     address admin = makeAddr("admin");
     address whitelabel = makeAddr("whitelabel");
 
@@ -22,12 +22,12 @@ abstract contract BridgeCoordinatorL1Test is Test {
     function setUp() public virtual {
         coordinator = new BridgeCoordinatorL1Harness();
         _resetInitializableStorageSlot();
-        coordinator.initialize(share, admin);
+        coordinator.initialize(unit, admin);
 
-        vm.mockCall(share, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
-        vm.mockCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
-        vm.mockCall(whitelabel, abi.encodeWithSelector(IWhitelabeledShare.wrap.selector), "");
-        vm.mockCall(whitelabel, abi.encodeWithSelector(IWhitelabeledShare.unwrap.selector), "");
+        vm.mockCall(unit, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
+        vm.mockCall(unit, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
+        vm.mockCall(whitelabel, abi.encodeWithSelector(IWhitelabeledUnit.wrap.selector), "");
+        vm.mockCall(whitelabel, abi.encodeWithSelector(IWhitelabeledUnit.unwrap.selector), "");
     }
 }
 
@@ -39,9 +39,9 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
         bytes[] memory returnData = new bytes[](2);
         returnData[0] = abi.encode(1000e18);
         returnData[1] = abi.encode(1000e18 + amount);
-        vm.mockCalls(share, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
+        vm.mockCalls(unit, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
 
-        vm.expectCall(share, abi.encodeCall(IERC20.transferFrom, (owner, address(coordinator), amount)));
+        vm.expectCall(unit, abi.encodeCall(IERC20.transferFrom, (owner, address(coordinator), amount)));
 
         coordinator.exposed_restrictShares(address(0), owner, amount);
     }
@@ -53,9 +53,9 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
         bytes[] memory returnData = new bytes[](2);
         returnData[0] = abi.encode(1000e18);
         returnData[1] = abi.encode(1000e18 + amount);
-        vm.mockCalls(share, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
+        vm.mockCalls(unit, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
 
-        vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledShare.unwrap, (owner, address(coordinator), amount)));
+        vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledUnit.unwrap, (owner, address(coordinator), amount)));
 
         coordinator.exposed_restrictShares(whitelabel, owner, amount);
     }
@@ -67,7 +67,7 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
         bytes[] memory returnData = new bytes[](2);
         returnData[0] = abi.encode(1000e18);
         returnData[1] = abi.encode(1000e18 + amount + 1); // incorrect balance after transfer
-        vm.mockCalls(share, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
+        vm.mockCalls(unit, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
 
         vm.expectRevert(BridgeCoordinatorL1.IncorrectEscrowBalance.selector);
         coordinator.exposed_restrictShares(address(0), owner, amount);
@@ -79,7 +79,7 @@ contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
         vm.assume(recipient != address(0));
         amount = bound(amount, 1, 1000e18);
 
-        vm.expectCall(share, abi.encodeCall(IERC20.transfer, (recipient, amount)));
+        vm.expectCall(unit, abi.encodeCall(IERC20.transfer, (recipient, amount)));
 
         coordinator.exposed_releaseShares(address(0), recipient, amount);
     }
@@ -88,7 +88,7 @@ contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
         vm.assume(recipient != address(0));
         amount = bound(amount, 1, 1000e18);
 
-        vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledShare.wrap, (recipient, amount)));
+        vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledUnit.wrap, (recipient, amount)));
 
         coordinator.exposed_releaseShares(whitelabel, recipient, amount);
     }

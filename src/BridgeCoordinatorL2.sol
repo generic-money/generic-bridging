@@ -5,7 +5,7 @@ import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 
 import { BridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
 import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
-import { IWhitelabeledShare } from "./interfaces/IWhitelabeledShare.sol";
+import { IWhitelabeledUnit } from "./interfaces/IWhitelabeledUnit.sol";
 
 /**
  * @title BridgeCoordinatorL2
@@ -27,7 +27,7 @@ contract BridgeCoordinatorL2 is BridgeCoordinator {
         if (whitelabel == address(0)) {
             IERC20Mintable(shareToken).burn(owner, address(this), amount);
         } else {
-            IWhitelabeledShare(whitelabel).unwrap(owner, address(this), amount);
+            IWhitelabeledUnit(whitelabel).unwrap(owner, address(this), amount);
             IERC20Mintable(shareToken).burn(address(this), address(this), amount);
         }
 
@@ -47,7 +47,7 @@ contract BridgeCoordinatorL2 is BridgeCoordinator {
         } else {
             IERC20Mintable(shareToken).mint(address(this), amount);
             IERC20(shareToken).forceApprove(address(whitelabel), amount);
-            IWhitelabeledShare(whitelabel).wrap(receiver, amount);
+            IWhitelabeledUnit(whitelabel).wrap(receiver, amount);
         }
     }
 }

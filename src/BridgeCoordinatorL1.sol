@@ -5,7 +5,7 @@ import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 
 import { BridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
 import { PredepositCoordinator } from "./coordinator/PredepositCoordinator.sol";
-import { IWhitelabeledShare } from "./interfaces/IWhitelabeledShare.sol";
+import { IWhitelabeledUnit } from "./interfaces/IWhitelabeledUnit.sol";
 
 /**
  * @title BridgeCoordinatorL1
@@ -35,7 +35,7 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
         if (whitelabel == address(0)) {
             IERC20(shareToken).safeTransferFrom(owner, address(this), amount);
         } else {
-            IWhitelabeledShare(whitelabel).unwrap(owner, address(this), amount);
+            IWhitelabeledUnit(whitelabel).unwrap(owner, address(this), amount);
         }
 
         // Note: Sanity check that the expected amount of shares were actually transferred
@@ -54,7 +54,7 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
             IERC20(shareToken).safeTransfer(receiver, amount);
         } else {
             IERC20(shareToken).forceApprove(address(whitelabel), amount);
-            IWhitelabeledShare(whitelabel).wrap(receiver, amount);
+            IWhitelabeledUnit(whitelabel).wrap(receiver, amount);
         }
     }
 }

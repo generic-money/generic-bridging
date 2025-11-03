@@ -10,12 +10,12 @@ import { BridgeMessageCoordinator, BridgeMessage } from "../../src/coordinator/B
 
 import { MockBridgeAdapter } from "../helper/MockBridgeAdapter.sol";
 import { MockERC20 } from "../helper/MockERC20.sol";
-import { MockWhitelabeledShare } from "../helper/MockWhitelabeledShare.sol";
+import { MockWhitelabeledUnit } from "../helper/MockWhitelabeledUnit.sol";
 
 abstract contract BridgeCoordinatorL2IntegrationTest is Test {
     BridgeCoordinatorL2 coordinator;
-    MockERC20 share;
-    MockWhitelabeledShare gusd;
+    MockERC20 unit;
+    MockWhitelabeledUnit gusd;
 
     MockBridgeAdapter localAdapter;
     bytes32 remoteAdapter = keccak256("remote adapter");
@@ -33,17 +33,17 @@ abstract contract BridgeCoordinatorL2IntegrationTest is Test {
         coordinator = BridgeCoordinatorL2(
             address(new TransparentUpgradeableProxy(address(new BridgeCoordinatorL2()), address(this), ""))
         );
-        share = new MockERC20(18);
-        gusd = new MockWhitelabeledShare(address(share));
-        coordinator.initialize(address(share), address(this));
+        unit = new MockERC20(18);
+        gusd = new MockWhitelabeledUnit(address(unit));
+        coordinator.initialize(address(unit), address(this));
 
         coordinator.grantRole(coordinator.ADAPTER_MANAGER_ROLE(), address(this));
 
         localAdapter = new MockBridgeAdapter(bridgeType, address(coordinator));
 
-        deal(address(share), user, 1_000_000e18, true);
+        deal(address(unit), user, 1_000_000e18, true);
         vm.startPrank(user);
-        share.approve(address(gusd), type(uint256).max);
+        unit.approve(address(gusd), type(uint256).max);
         gusd.wrap(user, 1_000_000e18);
         gusd.approve(address(coordinator), type(uint256).max);
         vm.stopPrank();
@@ -53,7 +53,7 @@ abstract contract BridgeCoordinatorL2IntegrationTest is Test {
 
         vm.label(address(coordinator), "BridgeCoordinatorL2");
         vm.label(address(controller), "Controller");
-        vm.label(address(share), "share");
+        vm.label(address(unit), "unit");
         vm.label(address(gusd), "GUSD");
     }
 }
@@ -85,8 +85,8 @@ contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2Integr
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
 
         // Bridge successfully
-        uint256 preTotalSupply = share.totalSupply();
-        assertEq(share.totalSupply(), preTotalSupply);
+        uint256 preTotalSupply = unit.totalSupply();
+        assertEq(unit.totalSupply(), preTotalSupply);
         assertEq(gusd.totalSupply(), preTotalSupply);
         assertEq(gusd.balanceOf(user), preTotalSupply);
 
@@ -96,7 +96,7 @@ contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2Integr
             bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
-        assertEq(share.totalSupply(), preTotalSupply - 100e18);
+        assertEq(unit.totalSupply(), preTotalSupply - 100e18);
         assertEq(gusd.totalSupply(), preTotalSupply - 100e18);
         assertEq(gusd.balanceOf(user), preTotalSupply - 100e18);
 
@@ -148,15 +148,15 @@ contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2Integr
         coordinator.setOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
 
         // Settle successfully
-        uint256 preTotalSupply = share.totalSupply();
-        assertEq(share.totalSupply(), preTotalSupply);
+        uint256 preTotalSupply = unit.totalSupply();
+        assertEq(unit.totalSupply(), preTotalSupply);
         assertEq(gusd.totalSupply(), preTotalSupply);
         assertEq(gusd.balanceOf(receiver), 0);
 
         vm.prank(address(localAdapter));
         coordinator.settleInboundMessage(bridgeType, chainId, remoteAdapter, messageData, messageId);
 
-        assertEq(share.totalSupply(), preTotalSupply + 100e18);
+        assertEq(unit.totalSupply(), preTotalSupply + 100e18);
         assertEq(gusd.totalSupply(), preTotalSupply + 100e18);
         assertEq(gusd.balanceOf(receiver), 100e18);
 
