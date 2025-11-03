@@ -10,21 +10,21 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
     bytes32 public constant ADAPTER_MANAGER_ROLE = keccak256("ADAPTER_MANAGER_ROLE");
 
     /**
-     * @notice Emitted when a local bridge adapter's inbound-only status is updated
+     * @notice Emitted when a local bridge adapter's status is updated
      * @param bridgeType The identifier for the bridge protocol
      * @param adapter The local bridge adapter address
-     * @param isInboundOnly Whether the adapter is inbound-only (true) or not (false)
+     * @param isAdapter The new status of the adapter
      */
-    event LocalInboundOnlyBridgeAdapterUpdated(uint16 indexed bridgeType, address indexed adapter, bool isInboundOnly);
+    event LocalBridgeAdapterUpdated(uint16 indexed bridgeType, address indexed adapter, bool isAdapter);
     /**
-     * @notice Emitted when a remote bridge adapter's inbound-only status is updated
+     * @notice Emitted when a remote bridge adapter's status is updated
      * @param bridgeType The identifier for the bridge protocol
      * @param chainId The remote chain ID
      * @param adapter The remote bridge adapter address (encoded as bytes32)
-     * @param isInboundOnly Whether the adapter is inbound-only (true) or not (false)
+     * @param isAdapter The new status of the adapter
      */
-    event RemoteInboundOnlyBridgeAdapterUpdated(
-        uint16 indexed bridgeType, uint256 indexed chainId, bytes32 indexed adapter, bool isInboundOnly
+    event RemoteBridgeAdapterUpdated(
+        uint16 indexed bridgeType, uint256 indexed chainId, bytes32 indexed adapter, bool isAdapter
     );
     /**
      * @notice Emitted when the outbound local bridge adapter is updated
@@ -51,65 +51,73 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
      */
     error BridgeTypeMismatch();
     /**
-     * @notice Thrown when attempting to swap inbound adapter that is not in the inbound-only list
+     * @notice Thrown when attempting to remove the outbound adapter from the adapter list
      */
-    error AdapterNotInInboundList();
+    error IsOutboundAdapter();
+    /**
+     * @notice Thrown when the new outbound adapter is not in the adapter list
+     */
+    error IsNotAdapter();
 
     /**
-     * @notice Sets a local bridge adapter into inbound-only list for a specific bridge type
+     * @notice Sets a local bridge adapter for a specific bridge type
      * @dev Only callable by ADAPTER_MANAGER_ROLE. Validates adapter configuration if non-zero address provided.
-     * When replacing an existing adapter, the old adapter is marked as inbound-only to prevent disruption of pending
-     * operations
+     * Cannot remove the current outbound adapter.
      * @param bridgeType The identifier for the bridge protocol
-     * @param adapter The local bridge adapter address to mark as inbound-only
-     * @param isInboundOnly Whether to mark the adapter as inbound-only (true) or remove it from inbound-only list
-     * (false)
+     * @param adapter The local bridge adapter address
+     * @param isAdapter Whether to add or remove the adapter from the adapter list
      */
-    function setIsInboundOnlyLocalBridgeAdapter(
+    function setIsLocalBridgeAdapter(
         uint16 bridgeType,
         IBridgeAdapter adapter,
-        bool isInboundOnly
+        bool isAdapter
     )
         external
         onlyRole(ADAPTER_MANAGER_ROLE)
     {
-        if (isInboundOnly) {
+        LocalConfig storage config = bridgeTypes[bridgeType].local;
+        if (isAdapter) {
             require(adapter.bridgeCoordinator() == address(this), CoordinatorMismatch());
             require(adapter.bridgeType() == bridgeType, BridgeTypeMismatch());
+        } else {
+            require(address(config.outbound) != address(adapter), IsOutboundAdapter());
         }
-        bridgeTypes[bridgeType].local.isInboundOnly[address(adapter)] = isInboundOnly;
-        emit LocalInboundOnlyBridgeAdapterUpdated(bridgeType, address(adapter), isInboundOnly);
+        config.isAdapter[address(adapter)] = isAdapter;
+        emit LocalBridgeAdapterUpdated(bridgeType, address(adapter), isAdapter);
     }
 
     /**
-     * @notice Sets a remote bridge adapter into inbound-only list for a specific bridge type and chain
-     * @dev Only callable by ADAPTER_MANAGER_ROLE.
+     * @notice Sets a remote bridge adapter for a specific bridge type and chain
+     * @dev Only callable by ADAPTER_MANAGER_ROLE. Cannot remove the current outbound adapter.
      * @param bridgeType The identifier for the bridge protocol
      * @param chainId The destination chain ID
-     * @param adapter The remote bridge adapter address (encoded as bytes32) to mark as inbound-only
-     * @param isInboundOnly Whether to mark the adapter as inbound-only (true) or remove it from inbound-only list
-     * (false)
+     * @param adapter The remote bridge adapter address (encoded as bytes32)
+     * @param isAdapter Whether to add or remove the adapter from the adapter list
      */
-    function setIsInboundOnlyRemoteBridgeAdapter(
+    function setIsRemoteBridgeAdapter(
         uint16 bridgeType,
         uint256 chainId,
         bytes32 adapter,
-        bool isInboundOnly
+        bool isAdapter
     )
         external
         onlyRole(ADAPTER_MANAGER_ROLE)
     {
-        bridgeTypes[bridgeType].remote[chainId].isInboundOnly[adapter] = isInboundOnly;
-        emit RemoteInboundOnlyBridgeAdapterUpdated(bridgeType, chainId, adapter, isInboundOnly);
+        RemoteConfig storage config = bridgeTypes[bridgeType].remote[chainId];
+        if (!isAdapter) {
+            require(config.outbound != adapter, IsOutboundAdapter());
+        }
+        config.isAdapter[adapter] = isAdapter;
+        emit RemoteBridgeAdapterUpdated(bridgeType, chainId, adapter, isAdapter);
     }
 
     /**
-     * @notice Swaps an existing inbound-only adapter for the outbound local bridge adapter for a specific bridge type
-     * @dev Only callable by ADAPTER_MANAGER_ROLE. Previous adapter is marked as inbound-only.
+     * @notice Sets an existing adapter as the outbound local bridge adapter for a specific bridge type
+     * @dev Only callable by ADAPTER_MANAGER_ROLE.
      * @param bridgeType The identifier for the bridge protocol
-     * @param adapter The new local bridge adapter contract
+     * @param adapter The new outbound local bridge adapter contract
      */
-    function swapOutboundLocalBridgeAdapter(
+    function setOutboundLocalBridgeAdapter(
         uint16 bridgeType,
         IBridgeAdapter adapter
     )
@@ -118,28 +126,20 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
     {
         LocalConfig storage config = bridgeTypes[bridgeType].local;
         if (address(adapter) != address(0)) {
-            require(config.isInboundOnly[address(adapter)], AdapterNotInInboundList());
-            config.isInboundOnly[address(adapter)] = false;
-            emit LocalInboundOnlyBridgeAdapterUpdated(bridgeType, address(adapter), false);
+            require(config.isAdapter[address(adapter)], IsNotAdapter());
         }
-        address oldAdapter = address(config.adapter);
-        if (oldAdapter != address(0)) {
-            config.isInboundOnly[oldAdapter] = true;
-            emit LocalInboundOnlyBridgeAdapterUpdated(bridgeType, oldAdapter, true);
-        }
-        config.adapter = adapter;
+        config.outbound = adapter;
         emit LocalOutboundBridgeAdapterUpdated(bridgeType, address(adapter));
     }
 
     /**
-     * @notice Swaps an existing inbound-only adapter for the outbound remote bridge adapter for a specific bridge type
-     * and chain
-     * @dev Only callable by ADAPTER_MANAGER_ROLE. Previous adapter is marked as inbound-only.
+     * @notice Sets an existing adapter as the outbound remote bridge adapter for a specific bridge type and chain
+     * @dev Only callable by ADAPTER_MANAGER_ROLE.
      * @param bridgeType The identifier for the bridge protocol
      * @param chainId The destination chain ID
-     * @param adapter The new remote bridge adapter address (encoded as bytes32)
+     * @param adapter The new outbound remote bridge adapter address (encoded as bytes32)
      */
-    function swapOutboundRemoteBridgeAdapter(
+    function setOutboundRemoteBridgeAdapter(
         uint16 bridgeType,
         uint256 chainId,
         bytes32 adapter
@@ -149,16 +149,9 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
     {
         RemoteConfig storage config = bridgeTypes[bridgeType].remote[chainId];
         if (adapter != bytes32(0)) {
-            require(config.isInboundOnly[adapter], AdapterNotInInboundList());
-            config.isInboundOnly[adapter] = false;
-            emit RemoteInboundOnlyBridgeAdapterUpdated(bridgeType, chainId, adapter, false);
+            require(config.isAdapter[adapter], IsNotAdapter());
         }
-        bytes32 oldAdapter = config.adapter;
-        if (oldAdapter != bytes32(0)) {
-            config.isInboundOnly[oldAdapter] = true;
-            emit RemoteInboundOnlyBridgeAdapterUpdated(bridgeType, chainId, oldAdapter, true);
-        }
-        config.adapter = adapter;
+        config.outbound = adapter;
         emit RemoteOutboundBridgeAdapterUpdated(bridgeType, chainId, adapter);
     }
 }

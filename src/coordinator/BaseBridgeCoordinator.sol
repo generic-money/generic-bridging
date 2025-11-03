@@ -22,24 +22,22 @@ abstract contract BaseBridgeCoordinator is
 
     /**
      * @notice Configuration for the local bridge adapter
-     * @dev Includes the adapter instance and a mapping of inbound-only adapters
-     * @param adapter The local bridge adapter contract
-     * @param isInboundOnly Mapping of adapter addresses that are allowed only for inbound messages
+     * @param outbound The local bridge adapter contract used for outbound messages
+     * @param isAdapter Mapping of adapter addresses
      */
     struct LocalConfig {
-        IBridgeAdapter adapter;
-        mapping(address => bool) isInboundOnly;
+        IBridgeAdapter outbound;
+        mapping(address => bool) isAdapter;
     }
 
     /**
      * @notice Configuration for a remote bridge adapter on another chain
-     * @dev Includes the adapter identifier and a mapping of inbound-only adapters
-     * @param adapter The remote bridge adapter address encoded as bytes32
-     * @param isInboundOnly Mapping of remote adapter identifiers that are allowed only for inbound messages
+     * @param outbound The remote bridge adapter address (encoded as bytes32) used for outbound messages
+     * @param isAdapter Mapping of remote adapter identifiers (encoded as bytes32)
      */
     struct RemoteConfig {
-        bytes32 adapter;
-        mapping(bytes32 => bool) isInboundOnly;
+        bytes32 outbound;
+        mapping(bytes32 => bool) isAdapter;
     }
 
     /**
@@ -76,58 +74,58 @@ abstract contract BaseBridgeCoordinator is
      * @param chainId The destination chain ID to check support for
      * @return True if the bridge type is supported for the specified chain, false otherwise
      */
-    function supportsBridgeTypeFor(uint16 bridgeType, uint256 chainId) external view returns (bool) {
-        bool localAdapter = address(bridgeTypes[bridgeType].local.adapter) != address(0);
-        bool remoteAdapter = bridgeTypes[bridgeType].remote[chainId].adapter != bytes32(0);
+    function supportsBridgeTypeFor(uint16 bridgeType, uint256 chainId) public view returns (bool) {
+        bool localAdapter = address(bridgeTypes[bridgeType].local.outbound) != address(0);
+        bool remoteAdapter = bridgeTypes[bridgeType].remote[chainId].outbound != bytes32(0);
         return localAdapter && remoteAdapter;
     }
 
     /**
-     * @notice Returns the local bridge adapter for a specific bridge type
+     * @notice Returns the outbound local bridge adapter for a specific bridge type
      * @param bridgeType The identifier for the bridge protocol
-     * @return The local bridge adapter contract
+     * @return The local bridge adapter contract used for outbound messages
      */
-    function localBridgeAdapter(uint16 bridgeType) external view returns (IBridgeAdapter) {
-        return bridgeTypes[bridgeType].local.adapter;
+    function outboundLocalBridgeAdapter(uint16 bridgeType) public view returns (IBridgeAdapter) {
+        return bridgeTypes[bridgeType].local.outbound;
     }
 
     /**
-     * @notice Checks if a local bridge adapter is marked as inbound-only for a specific bridge type
+     * @notice Checks if an address is a local bridge adapter
      * @param bridgeType The identifier for the bridge protocol
      * @param adapter The local bridge adapter address to check
-     * @return True if the adapter is inbound-only, false otherwise
+     * @return True if a local adapter, false otherwise
      */
-    function isInboundOnlyLocalBridgeAdapter(uint16 bridgeType, address adapter) external view returns (bool) {
-        return bridgeTypes[bridgeType].local.isInboundOnly[adapter];
+    function isLocalBridgeAdapter(uint16 bridgeType, address adapter) public view returns (bool) {
+        return bridgeTypes[bridgeType].local.isAdapter[adapter];
     }
 
     /**
-     * @notice Returns the remote bridge adapter address for a specific bridge type and chain
+     * @notice Returns the outbound remote bridge adapter for a specific bridge type and chain
      * @param bridgeType The identifier for the bridge protocol
      * @param chainId The remote chain ID
-     * @return The remote bridge adapter address encoded as bytes32
+     * @return The remote bridge adapter address (encoded as bytes32) used for outbound messages
      */
-    function remoteBridgeAdapter(uint16 bridgeType, uint256 chainId) external view returns (bytes32) {
-        return bridgeTypes[bridgeType].remote[chainId].adapter;
+    function outboundRemoteBridgeAdapter(uint16 bridgeType, uint256 chainId) public view returns (bytes32) {
+        return bridgeTypes[bridgeType].remote[chainId].outbound;
     }
 
     /**
-     * @notice Checks if a remote bridge adapter is marked as inbound-only for a specific bridge type and chain
+     * @notice Checks if an address is a remote bridge adapter for a specific bridge type and chain
      * @param bridgeType The identifier for the bridge protocol
      * @param chainId The remote chain ID
      * @param adapter The remote bridge adapter address (encoded as bytes32) to check
-     * @return True if the adapter is inbound-only, false otherwise
+     * @return True if the adapter is a remote bridge adapter, false otherwise
      */
-    function isInboundOnlyRemoteBridgeAdapter(
+    function isRemoteBridgeAdapter(
         uint16 bridgeType,
         uint256 chainId,
         bytes32 adapter
     )
-        external
+        public
         view
         returns (bool)
     {
-        return bridgeTypes[bridgeType].remote[chainId].isInboundOnly[adapter];
+        return bridgeTypes[bridgeType].remote[chainId].isAdapter[adapter];
     }
 
     /**

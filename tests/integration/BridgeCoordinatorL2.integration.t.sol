@@ -61,27 +61,27 @@ abstract contract BridgeCoordinatorL2IntegrationTest is Test {
 contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2IntegrationTest {
     function test_bridge_outbound() public {
         // Fail to bridge when no adapters are set
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundLocalBridgeAdapter.selector);
         vm.prank(user);
         coordinator.bridge{ value: 1 ether }(
             bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
         // Setup local adapter
-        coordinator.setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-        coordinator.swapOutboundLocalBridgeAdapter(bridgeType, localAdapter);
+        coordinator.setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
+        coordinator.setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
         assertFalse(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
 
         // Fail to bridge when no remote adapter is set
-        vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundRemoteBridgeAdapter.selector);
         vm.prank(user);
         coordinator.bridge{ value: 1 ether }(
             bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
         // Setup remote adapter
-        coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
-        coordinator.swapOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
+        coordinator.setIsRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
+        coordinator.setOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
 
         // Bridge successfully
@@ -142,10 +142,10 @@ contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2Integr
         coordinator.settleInboundMessage(bridgeType, chainId, remoteUser, messageData, messageId);
 
         // Setup adapters
-        coordinator.setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-        coordinator.swapOutboundLocalBridgeAdapter(bridgeType, localAdapter);
-        coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
-        coordinator.swapOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
+        coordinator.setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
+        coordinator.setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
+        coordinator.setIsRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
+        coordinator.setOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
 
         // Settle successfully
         uint256 preTotalSupply = share.totalSupply();
@@ -181,10 +181,10 @@ contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2Integr
         bytes memory messageData = coordinator.encodeBridgeMessage(message);
 
         // Setup adapters
-        coordinator.setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
-        coordinator.swapOutboundLocalBridgeAdapter(bridgeType, localAdapter);
-        coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
-        coordinator.swapOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
+        coordinator.setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
+        coordinator.setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
+        coordinator.setIsRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter, true);
+        coordinator.setOutboundRemoteBridgeAdapter(bridgeType, chainId, remoteAdapter);
 
         // Fail to settle and store failed message execution for rollback test
         gusd.setRevertNextCall(true);
@@ -205,10 +205,10 @@ contract BridgeCoordinatorL2_Bridge_IntegrationTest is BridgeCoordinatorL2Integr
         // Setup different bridge type
         uint16 bridgeType2 = bridgeType + 1;
         MockBridgeAdapter localAdapter2 = new MockBridgeAdapter(bridgeType2, address(coordinator));
-        coordinator.setIsInboundOnlyLocalBridgeAdapter(bridgeType2, localAdapter2, true);
-        coordinator.swapOutboundLocalBridgeAdapter(bridgeType2, localAdapter2);
-        coordinator.setIsInboundOnlyRemoteBridgeAdapter(bridgeType2, chainId, remoteAdapter, true);
-        coordinator.swapOutboundRemoteBridgeAdapter(bridgeType2, chainId, remoteAdapter);
+        coordinator.setIsLocalBridgeAdapter(bridgeType2, localAdapter2, true);
+        coordinator.setOutboundLocalBridgeAdapter(bridgeType2, localAdapter2);
+        coordinator.setIsRemoteBridgeAdapter(bridgeType2, chainId, remoteAdapter, true);
+        coordinator.setOutboundRemoteBridgeAdapter(bridgeType2, chainId, remoteAdapter);
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType2, chainId));
 
         // Rollback successfully via different bridge type

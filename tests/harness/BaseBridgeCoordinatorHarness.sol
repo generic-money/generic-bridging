@@ -17,7 +17,7 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
     }
 
     function workaround_setOutboundLocalBridgeAdapter(uint16 bridgeType, address adapter) external {
-        bridgeTypes[bridgeType].local.adapter = IBridgeAdapter(adapter);
+        bridgeTypes[bridgeType].local.outbound = IBridgeAdapter(adapter);
     }
 
     function workaround_setOutboundRemoteBridgeAdapter(
@@ -27,28 +27,22 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
     )
         external
     {
-        bridgeTypes[bridgeType].remote[chainId].adapter = adapter;
+        bridgeTypes[bridgeType].remote[chainId].outbound = adapter;
     }
 
-    function workaround_setIsInboundOnlyLocalBridgeAdapter(
-        uint16 bridgeType,
-        address adapter,
-        bool isInboundOnly
-    )
-        external
-    {
-        bridgeTypes[bridgeType].local.isInboundOnly[adapter] = isInboundOnly;
+    function workaround_setIsLocalBridgeAdapter(uint16 bridgeType, address adapter, bool isAdapter) external {
+        bridgeTypes[bridgeType].local.isAdapter[adapter] = isAdapter;
     }
 
-    function workaround_setIsInboundOnlyRemoteBridgeAdapter(
+    function workaround_setIsRemoteBridgeAdapter(
         uint16 bridgeType,
         uint256 chainId,
         bytes32 adapter,
-        bool isInboundOnly
+        bool isAdapter
     )
         external
     {
-        bridgeTypes[bridgeType].remote[chainId].isInboundOnly[adapter] = isInboundOnly;
+        bridgeTypes[bridgeType].remote[chainId].isAdapter[adapter] = isAdapter;
     }
 
     function workaround_setFailedMessageExecution(bytes32 messageId, bytes32 messageHash) external {

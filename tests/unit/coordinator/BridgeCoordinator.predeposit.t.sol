@@ -188,7 +188,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
     }
 
     function test_shouldRevert_whenChainAdaptersNotSet() public {
-        vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
+        vm.expectRevert(BridgeCoordinator.NoOutboundLocalBridgeAdapter.selector);
         coordinator.bridgePredeposit(bridgeType + 1, chainNickname, owner, remoteRecipient, bridgeParams);
     }
 
