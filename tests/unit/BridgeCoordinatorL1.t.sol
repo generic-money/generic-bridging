@@ -31,8 +31,8 @@ abstract contract BridgeCoordinatorL1Test is Test {
     }
 }
 
-contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
-    function testFuzz_shouldLockShares_whenZeroWhitelabel(address owner, uint256 amount) public {
+contract BridgeCoordinatorL1_RestrictUnits_Test is BridgeCoordinatorL1Test {
+    function testFuzz_shouldLockUnits_whenZeroWhitelabel(address owner, uint256 amount) public {
         vm.assume(owner != address(0));
         amount = bound(amount, 1, type(uint256).max / 2);
 
@@ -46,7 +46,7 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
         coordinator.exposed_restrictUnits(address(0), owner, amount);
     }
 
-    function testFuzz_shouldUnwrapAndLockShares_whenWhitelabel(address owner, uint256 amount) public {
+    function testFuzz_shouldUnwrapAndLockUnits_whenWhitelabel(address owner, uint256 amount) public {
         vm.assume(owner != address(0));
         amount = bound(amount, 1, type(uint256).max / 2);
 
@@ -74,8 +74,8 @@ contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
     }
 }
 
-contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
-    function testFuzz_shouldUnlockShares_whenZeroWhitelabel(address recipient, uint256 amount) public {
+contract BridgeCoordinatorL1_ReleaseUnits_Test is BridgeCoordinatorL1Test {
+    function testFuzz_shouldUnlockUnits_whenZeroWhitelabel(address recipient, uint256 amount) public {
         vm.assume(recipient != address(0));
         amount = bound(amount, 1, 1000e18);
 
@@ -84,7 +84,7 @@ contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
         coordinator.exposed_releaseUnits(address(0), recipient, amount);
     }
 
-    function testFuzz_shouldUnlockAndWrapShares_whenWhitelabel(address recipient, uint256 amount) public {
+    function testFuzz_shouldUnlockAndWrapUnits_whenWhitelabel(address recipient, uint256 amount) public {
         vm.assume(recipient != address(0));
         amount = bound(amount, 1, 1000e18);
 

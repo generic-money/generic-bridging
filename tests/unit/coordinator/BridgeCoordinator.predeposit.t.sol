@@ -23,7 +23,7 @@ using Bytes32AddressLib for bytes32;
 abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
     BridgeCoordinatorPredepositHarness coordinator;
 
-    address share = makeAddr("share");
+    address unit = makeAddr("unit");
     address admin = makeAddr("admin");
     address owner = makeAddr("owner");
     bytes32 remoteSender = bytes32(uint256(uint160(makeAddr("remoteSender"))));
@@ -50,7 +50,7 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
     function setUp() public virtual {
         coordinator = new BridgeCoordinatorPredepositHarness();
         _resetInitializableStorageSlot();
-        coordinator.initialize(share, admin);
+        coordinator.initialize(unit, admin);
 
         managerRole = coordinator.PREDEPOSIT_MANAGER_ROLE();
         vm.prank(admin);
@@ -65,8 +65,8 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), abi.encode(messageId));
 
-        vm.mockCall(share, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
-        vm.mockCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
+        vm.mockCall(unit, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
+        vm.mockCall(unit, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
 
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);

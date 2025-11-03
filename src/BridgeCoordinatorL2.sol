@@ -9,19 +9,19 @@ import { IWhitelabeledUnit } from "./interfaces/IWhitelabeledUnit.sol";
 
 /**
  * @title BridgeCoordinatorL2
- * @notice L2-specific implementation of bridge coordinator that burns/mints shares instead of transferring
+ * @notice L2-specific implementation of bridge coordinator that burns/mints units instead of transferring
  * @dev Extends BridgeCoordinator with proper token lifecycle management for L2 deployments.
- * Burns shares when bridging out and mints shares when bridging in, maintaining total supply consistency.
+ * Burns units when bridging out and mints units when bridging in, maintaining total supply consistency.
  */
 contract BridgeCoordinatorL2 is BridgeCoordinator {
     using SafeERC20 for IERC20;
 
     /**
-     * @notice Burns shares when bridging out from L2
-     * @dev Overrides base implementation to burn shares
-     * @param whitelabel The whitelabeled share token address, or zero address for native share token
-     * @param owner The address that owns the shares to be burned
-     * @param amount The amount of shares to burn
+     * @notice Burns units when bridging out from L2
+     * @dev Overrides base implementation to burn units
+     * @param whitelabel The whitelabeled unit token address, or zero address for native unit token
+     * @param owner The address that owns the units to be burned
+     * @param amount The amount of units to burn
      */
     function _restrictUnits(address whitelabel, address owner, uint256 amount) internal override {
         if (whitelabel == address(0)) {
@@ -35,11 +35,11 @@ contract BridgeCoordinatorL2 is BridgeCoordinator {
     }
 
     /**
-     * @notice Mints shares when bridging in to L2
-     * @dev Overrides base implementation to mint new shares
-     * @param whitelabel The whitelabeled share token address, or zero address for native share token
-     * @param receiver The address that should receive the newly minted shares
-     * @param amount The amount of shares to mint
+     * @notice Mints units when bridging in to L2
+     * @dev Overrides base implementation to mint new units
+     * @param whitelabel The whitelabeled unit token address, or zero address for native unit token
+     * @param receiver The address that should receive the newly minted units
+     * @param amount The amount of units to mint
      */
     function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal override {
         if (whitelabel == address(0)) {

@@ -31,7 +31,7 @@ abstract contract BridgeCoordinatorL2Test is Test {
     }
 }
 
-contract BridgeCoordinatorL2_RestrictShares_Test is BridgeCoordinatorL2Test {
+contract BridgeCoordinatorL2_RestrictUnits_Test is BridgeCoordinatorL2Test {
     function testFuzz_shouldBurnTokens_whenZeroWhitelabel(address owner, uint256 amount) public {
         vm.assume(owner != address(0));
         vm.assume(amount > 0);
@@ -52,7 +52,7 @@ contract BridgeCoordinatorL2_RestrictShares_Test is BridgeCoordinatorL2Test {
     }
 }
 
-contract BridgeCoordinatorL2_ReleaseShares_Test is BridgeCoordinatorL2Test {
+contract BridgeCoordinatorL2_ReleaseUnits_Test is BridgeCoordinatorL2Test {
     function testFuzz_shouldMintTokens_whenZeroWhitelabel(address recipient, uint256 amount) public {
         vm.assume(recipient != address(0));
         vm.assume(amount > 0);

@@ -37,9 +37,9 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @notice Struct representing a blockchain configuration for predeposit operations
      * @param state The current state of predeposits for this chain
      * @param chainId The chain ID of the destination chain
-     * @param whitelabel The whitelabeled share token address for this chain, or zero for native share token
+     * @param whitelabel The whitelabeled unit token address for this chain, or zero for native unit token
      * @param predeposits Mapping of owner addresses to remote recipient addresses to predeposit amounts
-     * @param totalPredeposits The total amount of shares predeposited for this chain
+     * @param totalPredeposits The total amount of units predeposited for this chain
      */
     struct PredepositChain {
         PredepositState state;
@@ -93,7 +93,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     /**
      * @notice Emitted when a predeposit has been withdrawn back by the original owner
      * @param chainNickname The nickname of the chain where the predeposit was committed to
-     * @param owner The address on this chain on whose behalf the shares are bridged
+     * @param owner The address on this chain on whose behalf the units are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param recipient The address on this chain to receive the withdrawn tokens
      * @param amount The amount of tokens withdrawn
@@ -118,9 +118,9 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      */
     event ChainIdAssignedToNickname(bytes32 indexed chainNickname, uint256 chainId);
     /**
-     * @notice Emitted when a whitelabeled share address is assigned to a nickname for a specific chain
+     * @notice Emitted when a whitelabeled unit address is assigned to a nickname for a specific chain
      * @param chainNickname The nickname of the chain
-     * @param whitelabel The address of the whitelabeled share token
+     * @param whitelabel The address of the whitelabeled unit token
      */
     event WhitelabelAssignedToNickname(bytes32 indexed chainNickname, bytes32 indexed whitelabel);
 
@@ -170,12 +170,12 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     // ========================================
 
     /**
-     * @notice Predeposits shares for bridging to another chain
-     * @dev Restricts shares on this chain to be bridged later via bridgePredeposit
+     * @notice Predeposits units for bridging to another chain
+     * @dev Restricts units on this chain to be bridged later via bridgePredeposit
      * @param chainNickname The nickname of the destination chain
      * @param onBehalf The address on behalf of which the predeposit is made
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
-     * @param amount The amount of shares to predeposit
+     * @param amount The amount of units to predeposit
      */
     function predeposit(
         bytes32 chainNickname,
@@ -200,11 +200,11 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     }
 
     /**
-     * @notice Bridges predeposited shares to another chain using the specified bridge protocol
-     * @dev Sends a message to release predeposited shares on destination chain
+     * @notice Bridges predeposited units to another chain using the specified bridge protocol
+     * @dev Sends a message to release predeposited units on destination chain
      * @param bridgeType The identifier for the bridge protocol to use (must have registered adapter)
      * @param chainNickname The nickname of the destination chain
-     * @param owner The address on this chain on whose behalf the shares are bridged
+     * @param owner The address on this chain on whose behalf the units are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
      * @return messageId Unique identifier for tracking the cross-chain message
@@ -245,12 +245,12 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     }
 
     /**
-     * @notice Withdraws predeposited shares that were not bridged
-     * @dev Releases shares back to the original sender
+     * @notice Withdraws predeposited units that were not bridged
+     * @dev Releases units back to the original sender
      * @param chainNickname The nickname of the chain where the predeposit was made
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
-     * @param recipient The address on this chain to receive the withdrawn shares
-     * @param whitelabel The whitelabeled share token address, or zero address for native share token
+     * @param recipient The address on this chain to receive the withdrawn units
+     * @param whitelabel The whitelabeled unit token address, or zero address for native unit token
      */
     function withdrawPredeposit(
         bytes32 chainNickname,
@@ -294,7 +294,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @dev Should be called only after chain adapters are registered in BridgeCoordinator
      * @param chainNickname The nickname of the chain to enable predeposits dispatch for
      * @param chainId The chain ID of the destination chain
-     * @param whitelabel The address of the whitelabeled share token for this chain, zero for share token
+     * @param whitelabel The address of the whitelabeled unit token for this chain, zero for unit token
      */
     function enablePredepositsDispatch(
         bytes32 chainNickname,
@@ -350,9 +350,9 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     }
 
     /**
-     * @notice Sets the whitelabeled share address for the specified chain nickname
-     * @param chainNickname The nickname of the chain to set the whitelabeled share address for
-     * @param whitelabel The address of the whitelabeled share token
+     * @notice Sets the whitelabeled unit address for the specified chain nickname
+     * @param chainNickname The nickname of the chain to set the whitelabeled unit address for
+     * @param whitelabel The address of the whitelabeled unit token
      */
     function setWhitelabelForNickname(
         bytes32 chainNickname,
@@ -395,7 +395,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
      * @param chainNickname The nickname of the chain to get the predeposit for
      * @param sender The address that initiated the predeposit
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
-     * @return The amount of shares predeposited by the sender for the remote recipient
+     * @return The amount of units predeposited by the sender for the remote recipient
      */
     function getPredeposit(
         bytes32 chainNickname,
@@ -413,7 +413,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     /**
      * @notice Gets the total predeposited amount for the specified chain nickname
      * @param chainNickname The nickname of the chain to get the total predeposits for
-     * @return The total amount of shares predeposited for the specified chain nickname
+     * @return The total amount of units predeposited for the specified chain nickname
      */
     function getTotalPredeposits(bytes32 chainNickname) external view returns (uint256) {
         PredepositCoordinatorStorage storage $ = _getPredepositCoordinatorStorage();
@@ -421,9 +421,9 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
     }
 
     /**
-     * @notice Gets the whitelabeled share address assigned to the specified chain nickname
-     * @param chainNickname The nickname of the chain to get the whitelabeled share address for
-     * @return The whitelabeled share address assigned to the specified chain nickname
+     * @notice Gets the whitelabeled unit address assigned to the specified chain nickname
+     * @param chainNickname The nickname of the chain to get the whitelabeled unit address for
+     * @return The whitelabeled unit address assigned to the specified chain nickname
      */
     function getWhitelabelForNickname(bytes32 chainNickname) external view returns (bytes32) {
         PredepositCoordinatorStorage storage $ = _getPredepositCoordinatorStorage();

@@ -51,7 +51,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
     BridgeCoordinatorHarness internal coordinator;
 
     address internal owner = makeAddr("owner");
-    address internal shareToken = makeAddr("shareToken");
+    address internal unitToken = makeAddr("unitToken");
     address internal refundAddress = makeAddr("refundAddress");
     address internal srcWhitelabel = makeAddr("srcWhitelabel");
     bytes32 internal destWhitelabel = bytes32(uint256(uint160(address(makeAddr("destWhitelabel")))));
@@ -72,7 +72,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         coordinator = new BridgeCoordinatorHarness();
         vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
-        coordinator.initialize(shareToken, owner);
+        coordinator.initialize(unitToken, owner);
 
         l1Adapter = new LayerZeroAdapterHarness(coordinator, owner, endpoints[EID_L1]);
         l2Adapter = new LayerZeroAdapterHarness(coordinator, owner, endpoints[EID_L2]);

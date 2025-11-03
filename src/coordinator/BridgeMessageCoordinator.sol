@@ -6,11 +6,11 @@ import { BridgeMessage, Message, MessageType } from "./Message.sol";
 
 abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
     /**
-     * @notice Emitted when shares are bridged out to another chain
+     * @notice Emitted when units are bridged out to another chain
      * @param sender The address that initiated the bridge operation
-     * @param owner The address on this chain on whose behalf the shares are bridged
+     * @param owner The address on this chain on whose behalf the units are bridged
      * @param remoteRecipient The recipient address on the destination chain (as bytes32)
-     * @param amount The amount of shares being bridged
+     * @param amount The amount of units being bridged
      * @param messageId Unique identifier for tracking the bridge message
      * @param messageData The encoded bridge message
      */
@@ -23,10 +23,10 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         BridgeMessage messageData
     );
     /**
-     * @notice Emitted when shares are bridged in from another chain
+     * @notice Emitted when units are bridged in from another chain
      * @param remoteSender The sender address on the source chain (as bytes32)
-     * @param recipient The recipient address on this chain that received the shares
-     * @param amount The amount of shares being bridged
+     * @param recipient The recipient address on this chain that received the units
+     * @param amount The amount of units being bridged
      * @param messageId Unique identifier for tracking the bridge message
      * @param messageData The encoded bridge message
      */
@@ -78,16 +78,16 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
     error BridgeMessage_NoSenderToRollback();
 
     /**
-     * @notice Bridges shares to another chain using the specified bridge protocol
-     * @dev Restricts shares on this chain and sends a message to release equivalent shares on destination chain
+     * @notice Bridges Generic units to another chain using the specified bridge protocol
+     * @dev Restricts units on this chain and sends a message to release equivalent units on destination chain
      * @param bridgeType The identifier for the bridge protocol to use (must have registered adapter)
      * @param chainId The destination chain ID
-     * @param onBehalf The address on this chain on whose behalf the shares are bridged
+     * @param onBehalf The address on this chain on whose behalf the units are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
-     * @param sourceWhitelabel The whitelabeled share token address on this chain, or zero address for native share
+     * @param sourceWhitelabel The whitelabeled unit token address on this chain, or zero address for native unit
      * token
-     * @param destinationWhitelabel The whitelabeled share token address on the destination chain (encoded as bytes32)
-     * @param amount The amount of shares to bridge
+     * @param destinationWhitelabel The whitelabeled unit token address on the destination chain (encoded as bytes32)
+     * @param amount The amount of units to bridge
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
      * @return messageId Unique identifier for tracking the cross-chain message
      */
@@ -182,7 +182,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
 
     /**
      * @notice Settles an inbound bridge message
-     * @dev Decodes the bridge message and releases shares to the recipient on this chain
+     * @dev Decodes the bridge message and releases units to the recipient on this chain
      * @param messageData The encoded bridge message containing recipient and amount data
      * @param messageId Unique identifier for tracking the cross-chain message
      */
