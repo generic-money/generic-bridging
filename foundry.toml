@@ -14,6 +14,10 @@
   solc = "0.8.29"
   src = "src"
   test = "tests"
+  fs_permissions = [
+    { access = "read", path = "./addrs/"},
+    { access = "read-write", path = "./addrs/deployments.toml"},
+  ]
 
 [profile.ci]
   fuzz = { runs = 10_000 }

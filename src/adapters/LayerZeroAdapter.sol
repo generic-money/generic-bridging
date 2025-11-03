@@ -16,7 +16,7 @@ import { BridgeTypes } from "./BridgeTypes.sol";
  * @notice Bridge adapter using LayerZero's OApp for cross-chain messaging
  * @dev Handles message passing only - does NOT hold or manage tokens
  */
-abstract contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
+contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
     /**
      * @notice Emitted whenever a LayerZero endpoint identifier is configured for a given chain id.
      * @param chainId The canonical chain id managed by the bridge coordinator.
