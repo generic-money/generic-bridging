@@ -4,12 +4,12 @@ pragma solidity 0.8.29;
 import { BridgeCoordinator, IBridgeAdapter } from "../../src/coordinator/BridgeCoordinator.sol";
 
 abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
-    function exposed_restrictShares(address whitelabel, address owner, uint256 amount) external {
-        _restrictShares(whitelabel, owner, amount);
+    function exposed_restrictUnits(address whitelabel, address owner, uint256 amount) external {
+        _restrictUnits(whitelabel, owner, amount);
     }
 
-    function exposed_releaseShares(address whitelabel, address receiver, uint256 amount) external {
-        _releaseShares(whitelabel, receiver, amount);
+    function exposed_releaseUnits(address whitelabel, address receiver, uint256 amount) external {
+        _releaseUnits(whitelabel, receiver, amount);
     }
 
     function exposed_initializableStorageSlot() external pure returns (bytes32) {

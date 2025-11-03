@@ -22,8 +22,8 @@ struct Message {
  * @notice Structure representing the data for a bridge operation
  * @param sender The sender address on the source chain (as bytes32)
  * @param recipient The recipient address on the destination chain (as bytes32)
- * @param sourceWhitelabel The whitelabeled share token address on the source chain (as bytes32)
- * @param destinationWhitelabel The whitelabeled share token address on the destination chain (as bytes32)
+ * @param sourceWhitelabel The whitelabeled unit token address on the source chain (as bytes32)
+ * @param destinationWhitelabel The whitelabeled unit token address on the destination chain (as bytes32)
  * @param amount The amount of tokens to bridge
  */
 struct BridgeMessage {

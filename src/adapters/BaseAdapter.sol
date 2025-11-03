@@ -69,7 +69,7 @@ abstract contract BaseAdapter is IBridgeAdapter, Ownable2Step {
     function bridgeType() public view virtual returns (uint16);
 
     /**
-     * @notice Returns the messageId for the bridging and receiving of the shares
+     * @notice Returns the messageId for the bridging and receiving of the units
      * @param chainId The destination chain ID for the bridge operation
      * @return The bytes32 encoded messageId of the bridge transaction
      */

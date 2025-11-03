@@ -53,7 +53,7 @@ interface IBridgeAdapter {
     /**
      * @notice Returns the address of the bridge coordinator this adapter is connected to
      * @dev This ensures all adapters maintain a reference to their coordinator for callbacks
-     * @return The address of the ShareBridgeCoordinator contract
+     * @return The address of the BridgeCoordinator contract
      */
     function bridgeCoordinator() external view returns (address);
 }

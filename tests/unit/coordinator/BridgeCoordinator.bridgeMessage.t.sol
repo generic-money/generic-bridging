@@ -86,7 +86,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         );
     }
 
-    function testFuzz_shouldRestrictShareTokens(address sender, address whitelabel, uint256 amount) public {
+    function testFuzz_shouldRestrictUnitTokens(address sender, address whitelabel, uint256 amount) public {
         vm.assume(amount > 0);
         vm.assume(sender != address(0));
 
@@ -362,7 +362,7 @@ contract BridgeCoordinator_SettleInboundBridge_BridgeMessage_Test is
         assertEq(coordinator.failedMessageExecutions(messageId), failedMessageHash);
     }
 
-    function testFuzz_shouldReleaseShareToken(address _recipient, uint256 amount) public {
+    function testFuzz_shouldReleaseUnitToken(address _recipient, uint256 amount) public {
         vm.assume(_recipient != address(0));
         vm.assume(amount > 0);
 
