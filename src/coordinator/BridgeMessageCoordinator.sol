@@ -2,6 +2,7 @@
 pragma solidity 0.8.29;
 
 import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
+import { BridgeMessage, Message, MessageType } from "./Message.sol";
 
 abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
     /**
@@ -9,24 +10,33 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      * @param sender The address that initiated the bridge operation
      * @param owner The address on this chain on whose behalf the shares are bridged
      * @param remoteRecipient The recipient address on the destination chain (as bytes32)
-     * @param amount The amount of shares bridged out
+     * @param amount The amount of shares being bridged
      * @param messageId Unique identifier for tracking the bridge message
+     * @param messageData The encoded bridge message
      */
     event BridgedOut(
         address sender,
         address indexed owner,
         bytes32 indexed remoteRecipient,
         uint256 amount,
-        bytes32 indexed messageId
+        bytes32 indexed messageId,
+        BridgeMessage messageData
     );
     /**
      * @notice Emitted when shares are bridged in from another chain
      * @param remoteSender The sender address on the source chain (as bytes32)
      * @param recipient The recipient address on this chain that received the shares
-     * @param amount The amount of shares bridged in
+     * @param amount The amount of shares being bridged
      * @param messageId Unique identifier for tracking the bridge message
+     * @param messageData The encoded bridge message
      */
-    event BridgedIn(bytes32 indexed remoteSender, address indexed recipient, uint256 amount, bytes32 indexed messageId);
+    event BridgedIn(
+        bytes32 indexed remoteSender,
+        address indexed recipient,
+        uint256 amount,
+        bytes32 indexed messageId,
+        BridgeMessage messageData
+    );
     /**
      * @notice Emitted when a rollback bridge operation is initiated
      * @param rollbackedMessageId The original message ID that is being rollbacked
@@ -74,6 +84,9 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      * @param chainId The destination chain ID
      * @param onBehalf The address on this chain on whose behalf the shares are bridged
      * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
+     * @param sourceWhitelabel The whitelabeled share token address on this chain, or zero address for native share
+     * token
+     * @param destinationWhitelabel The whitelabeled share token address on the destination chain (encoded as bytes32)
      * @param amount The amount of shares to bridge
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
      * @return messageId Unique identifier for tracking the cross-chain message
@@ -83,6 +96,8 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         uint256 chainId,
         address onBehalf,
         bytes32 remoteRecipient,
+        address sourceWhitelabel,
+        bytes32 destinationWhitelabel,
         uint256 amount,
         bytes calldata bridgeParams
     )
@@ -95,12 +110,18 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         require(remoteRecipient != bytes32(0), BridgeMessage_InvalidRemoteRecipient());
         require(amount > 0, BridgeMessage_InvalidAmount());
 
-        bytes memory bridgeMessageData = encodeBridgeMessage(encodeOmnichainAddress(onBehalf), remoteRecipient, amount);
-        messageId = _dispatchMessage(bridgeType, chainId, bridgeMessageData, bridgeParams);
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: encodeOmnichainAddress(onBehalf),
+            recipient: remoteRecipient,
+            sourceWhitelabel: encodeOmnichainAddress(sourceWhitelabel),
+            destinationWhitelabel: destinationWhitelabel,
+            amount: amount
+        });
+        messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams);
 
-        _restrictTokens(msg.sender, amount);
+        _restrictShares(sourceWhitelabel, msg.sender, amount);
 
-        emit BridgedOut(msg.sender, onBehalf, remoteRecipient, amount, messageId);
+        emit BridgedOut(msg.sender, onBehalf, remoteRecipient, amount, messageId, bridgeMessage);
     }
 
     /**
@@ -136,13 +157,26 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         Message memory originalMessage = abi.decode(originalMessageData, (Message));
         require(originalMessage.messageType == MessageType.BRIDGE, BridgeMessage_InvalidMessageType());
         BridgeMessage memory bridgeMessage = abi.decode(originalMessage.data, (BridgeMessage));
-        require(bridgeMessage.omnichainSender != bytes32(0), BridgeMessage_NoSenderToRollback());
+        require(bridgeMessage.sender != bytes32(0), BridgeMessage_NoSenderToRollback());
 
-        bytes memory rollbackMessageData =
-            encodeBridgeMessage(bytes32(0), bridgeMessage.omnichainSender, bridgeMessage.amount);
-        rollbackMessageId = _dispatchMessage(bridgeType, originalChainId, rollbackMessageData, bridgeParams);
+        BridgeMessage memory rollbackMessage = BridgeMessage({
+            sender: bytes32(0),
+            recipient: bridgeMessage.sender,
+            sourceWhitelabel: bridgeMessage.destinationWhitelabel,
+            destinationWhitelabel: bridgeMessage.sourceWhitelabel,
+            amount: bridgeMessage.amount
+        });
+        rollbackMessageId =
+            _dispatchMessage(bridgeType, originalChainId, encodeBridgeMessage(rollbackMessage), bridgeParams);
 
-        emit BridgedOut(msg.sender, address(0), bridgeMessage.omnichainSender, bridgeMessage.amount, rollbackMessageId);
+        emit BridgedOut(
+            msg.sender,
+            address(0),
+            rollbackMessage.recipient,
+            rollbackMessage.amount,
+            rollbackMessageId,
+            rollbackMessage
+        );
         emit BridgeRollbackedOut(originalMessageId, rollbackMessageId);
     }
 
@@ -154,39 +188,21 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      */
     function _settleInboundBridgeMessage(bytes memory messageData, bytes32 messageId) internal {
         BridgeMessage memory message = abi.decode(messageData, (BridgeMessage));
-        address recipient = decodeOmnichainAddress(message.omnichainRecipient);
+        address recipient = decodeOmnichainAddress(message.recipient);
         uint256 amount = message.amount;
 
         require(recipient != address(0), BridgeMessage_InvalidRecipient());
         require(amount > 0, BridgeMessage_InvalidAmount());
-        _releaseTokens(recipient, amount);
-        emit BridgedIn(message.omnichainSender, recipient, amount, messageId);
+        _releaseShares(decodeOmnichainAddress(message.destinationWhitelabel), recipient, amount);
+        emit BridgedIn(message.sender, recipient, amount, messageId, message);
     }
 
     /**
      * @notice Encodes a BRIDGE type message for cross-chain transmission
-     * @param remoteSender The address initiating the bridge operation (encoded as bytes32)
-     * @param remoteRecipient The recipient address on the destination chain (encoded as bytes32)
-     * @param amount The amount of shares to bridge
+     * @param message The BridgeMessage struct containing bridge details
+     * @return The ABI-encoded message ready for dispatch
      */
-    function encodeBridgeMessage(
-        bytes32 remoteSender,
-        bytes32 remoteRecipient,
-        uint256 amount
-    )
-        public
-        pure
-        returns (bytes memory)
-    {
-        return abi.encode(
-            Message({
-                messageType: MessageType.BRIDGE,
-                data: abi.encode(
-                    BridgeMessage({
-                        omnichainSender: remoteSender, omnichainRecipient: remoteRecipient, amount: amount
-                    })
-                )
-            })
-        );
+    function encodeBridgeMessage(BridgeMessage memory message) public pure returns (bytes memory) {
+        return abi.encode(Message({ messageType: MessageType.BRIDGE, data: abi.encode(message) }));
     }
 }

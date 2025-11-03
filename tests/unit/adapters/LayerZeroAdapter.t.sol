@@ -13,13 +13,12 @@ import {
     ILayerZeroEndpointV2
 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import { IOAppCore } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppCore.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
 
 import { LayerZeroAdapter } from "../../../src/adapters/LayerZeroAdapter.sol";
 import { BaseAdapter } from "../../../src/adapters/BaseAdapter.sol";
 import { IBridgeCoordinator } from "../../../src/interfaces/IBridgeCoordinator.sol";
-import { BaseBridgeCoordinator } from "../../../src/coordinator/BaseBridgeCoordinator.sol";
+import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Message.sol";
 
 import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
@@ -54,6 +53,8 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
     address internal owner = makeAddr("owner");
     address internal shareToken = makeAddr("shareToken");
     address internal refundAddress = makeAddr("refundAddress");
+    address internal srcWhitelabel = makeAddr("srcWhitelabel");
+    bytes32 internal destWhitelabel = bytes32(uint256(uint160(address(makeAddr("destWhitelabel")))));
 
     uint16 internal constant EID_L1 = 1;
     uint16 internal constant EID_L2 = 2;
@@ -73,9 +74,8 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
         coordinator.initialize(shareToken, owner);
 
-        l1Adapter = new LayerZeroAdapterHarness(IBridgeCoordinator(address(coordinator)), owner, endpoints[EID_L1]);
-
-        l2Adapter = new LayerZeroAdapterHarness(IBridgeCoordinator(address(coordinator)), owner, endpoints[EID_L2]);
+        l1Adapter = new LayerZeroAdapterHarness(coordinator, owner, endpoints[EID_L1]);
+        l2Adapter = new LayerZeroAdapterHarness(coordinator, owner, endpoints[EID_L2]);
 
         remoteAdapterId = bytes32(uint256(uint160(address(l2Adapter))));
 
@@ -219,23 +219,18 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         uint256 amount = 42 ether;
 
         // Encode the bridge message exactly as BridgeCoordinator expects.
-        BaseBridgeCoordinator.BridgeMessage memory bridgeMessage = BaseBridgeCoordinator.BridgeMessage({
-            omnichainSender: coordinator.encodeOmnichainAddress(remoteUser),
-            omnichainRecipient: coordinator.encodeOmnichainAddress(recipient),
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: coordinator.encodeOmnichainAddress(remoteUser),
+            recipient: coordinator.encodeOmnichainAddress(recipient),
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+            destinationWhitelabel: destWhitelabel,
             amount: amount
         });
-        BaseBridgeCoordinator.Message memory decodedMessage = BaseBridgeCoordinator.Message({
-            messageType: BaseBridgeCoordinator.MessageType.BRIDGE, data: abi.encode(bridgeMessage)
-        });
+        Message memory decodedMessage = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
 
         bytes memory messageData = abi.encode(decodedMessage);
         bytes32 messageId = keccak256("lz-inbound"); // Mock data in the messageId
         bytes memory payload = abi.encode(messageData, messageId);
-
-        // Mock token release so SafeERC20 doesn’t revert, and assert it must
-        // TODO Is this actually needed be called.
-        vm.mockCall(shareToken, abi.encodeWithSelector(IERC20.transfer.selector, recipient, amount), abi.encode(true));
-        vm.expectCall(shareToken, abi.encodeWithSelector(IERC20.transfer.selector, recipient, amount));
 
         // Build a LayerZero packet sourced from the L2 adapter and destined for L1.
         Packet memory packet = Packet({
@@ -257,6 +252,15 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         // Process the queued packet; this will call _lzReceive on l1Adapter.
         verifyPackets(EID_L1, address(l1Adapter));
         _assertMessageInEvent(vm.getRecordedLogs(), messageId, abi.encode(decodedMessage));
+
+        {
+            (address inWhitelabel_, address recipient_, uint256 inAmount_) = coordinator.lastReleaseCall();
+            assertEq(
+                inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release"
+            );
+            assertEq(recipient_, recipient, "recipient mismatch on release");
+            assertEq(inAmount_, amount, "amount mismatch on release");
+        }
 
         // Queue should now be empty for this destination.
         assertFalse(
@@ -341,40 +345,32 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         uint256 amount = 77 ether;
 
         bytes32 remoteRecipient = coordinator.encodeOmnichainAddress(remoteRecipientAddress);
-        BaseBridgeCoordinator.BridgeMessage memory bridgeMessage = BaseBridgeCoordinator.BridgeMessage({
-            omnichainSender: coordinator.encodeOmnichainAddress(user),
-            omnichainRecipient: remoteRecipient,
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: coordinator.encodeOmnichainAddress(user),
+            recipient: remoteRecipient,
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+            destinationWhitelabel: destWhitelabel,
             amount: amount
         });
-        BaseBridgeCoordinator.Message memory message = BaseBridgeCoordinator.Message({
-            messageType: BaseBridgeCoordinator.MessageType.BRIDGE, data: abi.encode(bridgeMessage)
-        });
+        Message memory message = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
 
         bytes memory bridgeOptions = buildReceiveOptions(200_000);
         uint256 nativeFee = l1Adapter.estimateBridgeFee(CHAIN_ID_L2, abi.encode(message), bridgeOptions);
-
-        vm.mockCall(
-            shareToken,
-            abi.encodeWithSelector(IERC20.transferFrom.selector, user, address(coordinator), amount),
-            abi.encode(true)
-        );
-        vm.mockCall(
-            shareToken,
-            abi.encodeWithSelector(IERC20.transfer.selector, remoteRecipientAddress, amount),
-            abi.encode(true)
-        );
-        vm.expectCall(
-            shareToken, abi.encodeWithSelector(IERC20.transferFrom.selector, user, address(coordinator), amount)
-        );
-        vm.expectCall(shareToken, abi.encodeWithSelector(IERC20.transfer.selector, remoteRecipientAddress, amount));
 
         vm.deal(user, nativeFee);
         vm.startPrank(user);
         vm.recordLogs();
         bytes32 messageId = coordinator.bridge{ value: nativeFee }(
-            BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, amount, bridgeOptions
+            BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeOptions
         );
         vm.stopPrank();
+
+        {
+            (address outWhitelabel_, address owner_, uint256 outAmount_) = coordinator.lastRestrictCall();
+            assertEq(outWhitelabel_, srcWhitelabel, "whitelabel mismatch on restrict");
+            assertEq(owner_, user, "recipient mismatch on restrict");
+            assertEq(outAmount_, amount, "amount mismatch on restrict");
+        }
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         _assertMessageOutEvent(logs, messageId, abi.encode(message));
@@ -393,6 +389,15 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         verifyPackets(EID_L2, address(l2Adapter));
         logs = vm.getRecordedLogs();
         _assertMessageInEvent(logs, messageId, abi.encode(message));
+
+        {
+            (address inWhitelabel_, address recipient_, uint256 inAmount_) = coordinator.lastReleaseCall();
+            assertEq(
+                inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release"
+            );
+            assertEq(recipient_, remoteRecipientAddress, "recipient mismatch on release");
+            assertEq(inAmount_, amount, "amount mismatch on release");
+        }
 
         assertFalse(hasPendingPackets(EID_L2, remoteAdapterId), "packet queue not drained");
     }

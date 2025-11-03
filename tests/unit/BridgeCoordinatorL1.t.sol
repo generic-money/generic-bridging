@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.29;
+
+import { Test } from "forge-std/Test.sol";
+
+import { BridgeCoordinatorL1, IERC20, IWhitelabeledShare } from "../../src/BridgeCoordinatorL1.sol";
+
+import { BridgeCoordinatorL1Harness } from "../harness/BridgeCoordinatorL1Harness.sol";
+
+abstract contract BridgeCoordinatorL1Test is Test {
+    BridgeCoordinatorL1Harness coordinator;
+
+    address share = makeAddr("share");
+    address admin = makeAddr("admin");
+    address whitelabel = makeAddr("whitelabel");
+
+    function _resetInitializableStorageSlot() internal {
+        // reset the Initializable storage slot to allow usage of deployed instance in tests
+        vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
+    }
+
+    function setUp() public virtual {
+        coordinator = new BridgeCoordinatorL1Harness();
+        _resetInitializableStorageSlot();
+        coordinator.initialize(share, admin);
+
+        vm.mockCall(share, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
+        vm.mockCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
+        vm.mockCall(whitelabel, abi.encodeWithSelector(IWhitelabeledShare.wrap.selector), "");
+        vm.mockCall(whitelabel, abi.encodeWithSelector(IWhitelabeledShare.unwrap.selector), "");
+    }
+}
+
+contract BridgeCoordinatorL1_RestrictShares_Test is BridgeCoordinatorL1Test {
+    function testFuzz_shouldLockShares_whenZeroWhitelabel(address owner, uint256 amount) public {
+        vm.assume(owner != address(0));
+        amount = bound(amount, 1, type(uint256).max / 2);
+
+        bytes[] memory returnData = new bytes[](2);
+        returnData[0] = abi.encode(1000e18);
+        returnData[1] = abi.encode(1000e18 + amount);
+        vm.mockCalls(share, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
+
+        vm.expectCall(share, abi.encodeCall(IERC20.transferFrom, (owner, address(coordinator), amount)));
+
+        coordinator.exposed_restrictShares(address(0), owner, amount);
+    }
+
+    function testFuzz_shouldUnwrapAndLockShares_whenWhitelabel(address owner, uint256 amount) public {
+        vm.assume(owner != address(0));
+        amount = bound(amount, 1, type(uint256).max / 2);
+
+        bytes[] memory returnData = new bytes[](2);
+        returnData[0] = abi.encode(1000e18);
+        returnData[1] = abi.encode(1000e18 + amount);
+        vm.mockCalls(share, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
+
+        vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledShare.unwrap, (owner, address(coordinator), amount)));
+
+        coordinator.exposed_restrictShares(whitelabel, owner, amount);
+    }
+
+    function test_shouldRevert_whenIncorrectAmountUpdated() public {
+        address owner = makeAddr("owner");
+        uint256 amount = 500;
+
+        bytes[] memory returnData = new bytes[](2);
+        returnData[0] = abi.encode(1000e18);
+        returnData[1] = abi.encode(1000e18 + amount + 1); // incorrect balance after transfer
+        vm.mockCalls(share, abi.encodeCall(IERC20.balanceOf, (address(coordinator))), returnData);
+
+        vm.expectRevert(BridgeCoordinatorL1.IncorrectEscrowBalance.selector);
+        coordinator.exposed_restrictShares(address(0), owner, amount);
+    }
+}
+
+contract BridgeCoordinatorL1_ReleaseShares_Test is BridgeCoordinatorL1Test {
+    function testFuzz_shouldUnlockShares_whenZeroWhitelabel(address recipient, uint256 amount) public {
+        vm.assume(recipient != address(0));
+        amount = bound(amount, 1, 1000e18);
+
+        vm.expectCall(share, abi.encodeCall(IERC20.transfer, (recipient, amount)));
+
+        coordinator.exposed_releaseShares(address(0), recipient, amount);
+    }
+
+    function testFuzz_shouldUnlockAndWrapShares_whenWhitelabel(address recipient, uint256 amount) public {
+        vm.assume(recipient != address(0));
+        amount = bound(amount, 1, 1000e18);
+
+        vm.expectCall(whitelabel, abi.encodeCall(IWhitelabeledShare.wrap, (recipient, amount)));
+
+        coordinator.exposed_releaseShares(whitelabel, recipient, amount);
+    }
+}

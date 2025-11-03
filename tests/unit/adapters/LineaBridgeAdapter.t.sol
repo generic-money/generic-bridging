@@ -6,9 +6,11 @@ import { Test } from "forge-std/Test.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { LineaBridgeAdapter, BaseAdapter } from "../../../src/adapters/LineaBridgeAdapter.sol";
-import { BaseBridgeCoordinator, IBridgeCoordinator } from "../../../src/coordinator/BaseBridgeCoordinator.sol";
+import { IBridgeCoordinator } from "../../../src/interfaces/IBridgeCoordinator.sol";
+import { BridgeMessage } from "../../../src/coordinator/Message.sol";
 import { ILineaBridgeAdapter } from "../../../src/interfaces/bridges/linea/ILineaBridgeAdapter.sol";
 import { IMessageService } from "../../../src/interfaces/bridges/linea/IMessageService.sol";
+import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 contract MockBridgeCoordinator is IBridgeCoordinator {
     uint16 public lastBridgeType;
@@ -97,12 +99,17 @@ contract MockMessageService is IMessageService {
 }
 
 contract LineaBridgeAdapterTest is Test {
+    using Bytes32AddressLib for *;
+
     MockBridgeCoordinator internal coordinator;
     LineaBridgeAdapter internal adapter;
     MockMessageService internal messageService;
 
     address internal admin = makeAddr("admin");
     address internal refundAddress = makeAddr("refundAddress");
+    address internal srcWhitelabel = address(0);
+    bytes32 internal destWhitelabel = bytes32(0);
+
     uint16 internal constant BRIDGE_TYPE = 2;
     uint256 internal constant L2_CHAIN_ID = 110;
     address internal constant REMOTE_ADDRESS = address(0xBEEF);
@@ -187,9 +194,11 @@ contract LineaBridgeAdapterTest is Test {
         _registerMessageService(L2_CHAIN_ID, messageService);
 
         bytes memory payload = abi.encode(
-            BaseBridgeCoordinator.BridgeMessage({
-                omnichainSender: bytes32(uint256(uint160(makeAddr("sender")))),
-                omnichainRecipient: bytes32(uint256(uint160(makeAddr("recipient")))),
+            BridgeMessage({
+                sender: makeAddr("sender").toBytes32WithLowAddress(),
+                recipient: makeAddr("recipient").toBytes32WithLowAddress(),
+                sourceWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+                destinationWhitelabel: destWhitelabel,
                 amount: 42
             })
         );
@@ -247,9 +256,11 @@ contract LineaBridgeAdapterTest is Test {
         messageService.setSender(remoteSender);
 
         bytes memory messageData = abi.encode(
-            BaseBridgeCoordinator.BridgeMessage({
-                omnichainSender: bytes32(uint256(uint160(makeAddr("origin")))),
-                omnichainRecipient: bytes32(uint256(uint160(makeAddr("l2Recipient")))),
+            BridgeMessage({
+                sender: makeAddr("origin").toBytes32WithLowAddress(),
+                recipient: makeAddr("l2Recipient").toBytes32WithLowAddress(),
+                sourceWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+                destinationWhitelabel: destWhitelabel,
                 amount: 100
             })
         );

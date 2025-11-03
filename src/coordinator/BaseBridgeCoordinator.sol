@@ -70,35 +70,6 @@ abstract contract BaseBridgeCoordinator is
     uint256[50] private __gap;
 
     /**
-     * @notice Enum representing the type of cross-chain message
-     */
-    enum MessageType {
-        BRIDGE
-    }
-
-    /**
-     * @notice Structure representing a cross-chain bridge message
-     * @param messageType The type of the message (BRIDGE)
-     * @param data The payload of the message
-     */
-    struct Message {
-        MessageType messageType;
-        bytes data;
-    }
-
-    /**
-     * @notice Structure representing the data for a bridge operation
-     * @param omnichainSender The sender address on the source chain (as bytes32)
-     * @param omnichainRecipient The recipient address on the destination chain (as bytes32)
-     * @param amount The amount of tokens to bridge
-     */
-    struct BridgeMessage {
-        bytes32 omnichainSender;
-        bytes32 omnichainRecipient;
-        uint256 amount;
-    }
-
-    /**
      * @notice Checks if a specific bridge type is supported for a destination chain
      * @dev Returns true only if both local and remote adapters are configured
      * @param bridgeType The identifier for the bridge protocol
@@ -210,18 +181,20 @@ abstract contract BaseBridgeCoordinator is
         returns (bytes32 messageId);
 
     /**
-     * @notice Restricts tokens when bridging out
+     * @notice Restricts shares when bridging out
      * @dev Virtual function that inheriting contracts can override to implement burn/lock logic
-     * @param owner The address that owns the tokens to be restricted
-     * @param amount The amount of tokens to restrict
+     * @param whitelabel The whitelabeled share token address, or zero address for native share token
+     * @param owner The address that owns the shares to be restricted
+     * @param amount The amount of shares to restrict
      */
-    function _restrictTokens(address owner, uint256 amount) internal virtual;
+    function _restrictShares(address whitelabel, address owner, uint256 amount) internal virtual;
 
     /**
-     * @notice Releases tokens when bridging in
+     * @notice Releases shares when bridging in
      * @dev Virtual function that inheriting contracts can override to implement mint/unlock logic
-     * @param receiver The address that should receive the released tokens
-     * @param amount The amount of tokens to release
+     * @param whitelabel The whitelabeled share token address, or zero address for native share token
+     * @param receiver The address that should receive the released shares
+     * @param amount The amount of shares to release
      */
-    function _releaseTokens(address receiver, uint256 amount) internal virtual;
+    function _releaseShares(address whitelabel, address receiver, uint256 amount) internal virtual;
 }

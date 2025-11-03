@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import { BridgeCoordinatorTest } from "../BridgeCoordinator.t.sol";
+import { BridgeCoordinatorTest } from "./BridgeCoordinator.t.sol";
 
 abstract contract BridgeCoordinator_EmergencyManager_Test is BridgeCoordinatorTest {
     address manager = makeAddr("manager");

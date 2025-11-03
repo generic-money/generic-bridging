@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import { BaseBridgeCoordinator, IBridgeAdapter } from "./BaseBridgeCoordinator.sol";
 import { AdapterManager } from "./AdapterManager.sol";
 import { EmergencyManager } from "./EmergencyManager.sol";
 import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
+import { Message, MessageType } from "./Message.sol";
 
 /**
  * @title BridgeCoordinator
@@ -14,9 +13,12 @@ import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
  * @dev Base implementation that handles routing between bridge adapters and manages cross-chain operations.
  * Inheriting contracts should override _restrictTokens and _releaseTokens for custom token logic.
  */
-contract BridgeCoordinator is BaseBridgeCoordinator, AdapterManager, EmergencyManager, BridgeMessageCoordinator {
-    using SafeERC20 for IERC20;
-
+abstract contract BridgeCoordinator is
+    BaseBridgeCoordinator,
+    AdapterManager,
+    EmergencyManager,
+    BridgeMessageCoordinator
+{
     /**
      * @notice Emitted when a cross-chain message is dispatched
      * @param bridgeType The type of bridge protocol used for the operation
@@ -173,23 +175,5 @@ contract BridgeCoordinator is BaseBridgeCoordinator, AdapterManager, EmergencyMa
         } else {
             revert UnsupportedMessageType(uint8(message.messageType));
         }
-    }
-
-    /**
-     * @notice Lock tokens when bridging out
-     * @param owner The address that owns the tokens to be restricted
-     * @param amount The amount of tokens to restrict
-     */
-    function _restrictTokens(address owner, uint256 amount) internal virtual override {
-        IERC20(shareToken).safeTransferFrom(owner, address(this), amount);
-    }
-
-    /**
-     * @notice Unlock tokens when bridging in
-     * @param receiver The address that should receive the released tokens
-     * @param amount The amount of tokens to release
-     */
-    function _releaseTokens(address receiver, uint256 amount) internal virtual override {
-        IERC20(shareToken).safeTransfer(receiver, amount);
     }
 }

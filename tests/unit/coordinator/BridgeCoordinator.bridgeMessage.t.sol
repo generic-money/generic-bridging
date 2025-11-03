@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.29;
 
-import {
-    BridgeCoordinator,
-    BaseBridgeCoordinator,
-    BridgeMessageCoordinator,
-    IBridgeAdapter,
-    IERC20
-} from "../../../src/coordinator/BridgeCoordinator.sol";
+import { BridgeCoordinator, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { BridgeMessageCoordinator, BridgeMessage } from "../../../src/coordinator/BridgeMessageCoordinator.sol";
+import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
-import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "../BridgeCoordinator.t.sol";
+import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "./BridgeCoordinator.t.sol";
+
+using Bytes32AddressLib for address;
+using Bytes32AddressLib for bytes32;
 
 abstract contract BridgeCoordinator_BridgeMessage_Test is BridgeCoordinatorTest {
     address owner = makeAddr("owner");
+    BridgeMessage bridgeMessage = BridgeMessage({
+        sender: owner.toBytes32WithLowAddress(),
+        recipient: remoteRecipient,
+        sourceWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+        destinationWhitelabel: destWhitelabel,
+        amount: 1
+    });
 }
 
 contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_BridgeMessage_Test {
@@ -20,7 +26,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
 
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function test_shouldRevert_whenNoRemoteAdapter() public {
@@ -28,7 +34,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, bytes32(0));
 
         vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function test_shouldRevert_whenOnlyInboundLocalAdapter() public {
@@ -36,7 +42,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setIsInboundOnlyLocalBridgeAdapter(bridgeType, localAdapter, true);
 
         vm.expectRevert(BridgeCoordinator.NoLocalBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function test_shouldRevert_whenOnlyInboundRemoteAdapter() public {
@@ -45,22 +51,22 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.workaround_setIsInboundOnlyRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
 
         vm.expectRevert(BridgeCoordinator.NoRemoteBridgeAdapter.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function test_shouldRevert_whenOnBehalfIsZero() public {
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidOnBehalf.selector);
-        coordinator.bridge(bridgeType, remoteChainId, address(0), remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, address(0), remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function test_shouldRevert_whenRemoteRecipientIsZero() public {
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidRemoteRecipient.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, bytes32(0), 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, bytes32(0), srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function test_shouldRevert_whenAmountIsZero() public {
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidAmount.selector);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 0, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 0, "");
     }
 
     function testFuzz_shouldCallBridgeOnLocalAdapter(
@@ -75,8 +81,8 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
 
         deal(sender, fee);
 
-        bytes memory bridgeMessageData =
-            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(owner), remoteRecipient, amount);
+        bridgeMessage.amount = amount;
+        bytes memory bridgeMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
         vm.expectCall(
             localAdapter,
@@ -92,42 +98,50 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         );
 
         vm.prank(sender);
-        coordinator.bridge{ value: fee }(bridgeType, remoteChainId, owner, remoteRecipient, amount, bridgeParams);
+        coordinator.bridge{ value: fee }(
+            bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeParams
+        );
     }
 
-    function testFuzz_shouldLockTokensFromSender(uint256 amount) public {
+    function testFuzz_shouldRestrictShareTokens(address sender, address whitelabel, uint256 amount) public {
         vm.assume(amount > 0);
-
-        vm.expectCall(share, abi.encodeWithSelector(IERC20.transferFrom.selector, sender, address(coordinator), amount));
+        vm.assume(sender != address(0));
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, whitelabel, destWhitelabel, amount, "");
+
+        (address whitelabel_, address sender_, uint256 amount_) = coordinator.lastRestrictCall();
+        assertEq(whitelabel_, whitelabel);
+        assertEq(sender_, sender);
+        assertEq(amount_, amount);
     }
 
     function test_shouldReturnMessageId() public {
-        bytes32 returnedMessageId = coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+        bytes32 returnedMessageId =
+            coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
 
         assertEq(returnedMessageId, messageId);
     }
 
     function test_shouldEmit_MessageOut() public {
-        bytes memory bridgeMessageData =
-            coordinator.encodeBridgeMessage(coordinator.encodeOmnichainAddress(owner), remoteRecipient, 1);
+        bytes memory bridgeMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
         vm.expectEmit();
         emit BridgeCoordinator.MessageOut(bridgeType, remoteChainId, messageId, bridgeMessageData);
 
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, 1, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "");
     }
 
     function testFuzz_shouldEmit_BridgedOut(uint256 amount) public {
         vm.assume(amount > 0);
 
+        bridgeMessage.amount = amount;
+
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedOut(sender, owner, remoteRecipient, amount, messageId);
+        emit BridgeMessageCoordinator.BridgedOut(sender, owner, remoteRecipient, amount, messageId, bridgeMessage);
 
         vm.prank(sender);
-        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, amount, "");
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, amount, "");
     }
 }
 
@@ -142,8 +156,10 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
     function setUp() public override {
         super.setUp();
 
-        originalMessageData =
-            coordinator.encodeBridgeMessage(originalRemoteSender, originalOmnichainRecipient, originalAmount);
+        bridgeMessage.sender = originalRemoteSender;
+        bridgeMessage.recipient = originalOmnichainRecipient;
+        bridgeMessage.amount = originalAmount;
+        originalMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
         failedMessagesHash = keccak256(abi.encode(remoteChainId, originalMessageData));
         coordinator.workaround_setFailedMessageExecution(originalMessageId, failedMessagesHash);
     }
@@ -194,8 +210,8 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidFailedMessageData.selector);
         coordinator.rollback(bridgeType, remoteChainId + 1, originalMessageData, originalMessageId, "");
 
-        originalMessageData =
-            coordinator.encodeBridgeMessage(originalRemoteSender << 1, originalOmnichainRecipient, originalAmount);
+        bridgeMessage.sender = originalRemoteSender << 1;
+        originalMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidFailedMessageData.selector);
         coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
     }
@@ -216,9 +232,11 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         // Encode original message as a rollback message instead of bridge message
         originalMessageData = abi.encode(
             uint8(99),
-            BaseBridgeCoordinator.BridgeMessage({
-                omnichainSender: originalRemoteSender,
-                omnichainRecipient: originalOmnichainRecipient,
+            BridgeMessage({
+                sender: originalRemoteSender,
+                recipient: originalOmnichainRecipient,
+                sourceWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+                destinationWhitelabel: destWhitelabel,
                 amount: originalAmount
             })
         );
@@ -246,15 +264,23 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         deal(caller, fee);
 
         originalMessageId = msgId;
-        originalRemoteSender = coordinator.encodeOmnichainAddress(sender);
-        originalAmount = amount; // can be 0
+        bridgeMessage.sender = sender.toBytes32WithLowAddress();
+        bridgeMessage.recipient = remoteRecipient;
+        bridgeMessage.amount = amount; // can be 0
 
-        originalMessageData = coordinator.encodeBridgeMessage(originalRemoteSender, remoteRecipient, originalAmount);
+        originalMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
         failedMessagesHash = keccak256(abi.encode(remoteChainId, originalMessageData));
         coordinator.workaround_setFailedMessageExecution(originalMessageId, failedMessagesHash);
 
-        bytes memory rollbackMessageData =
-            coordinator.encodeBridgeMessage(bytes32(0), originalRemoteSender, originalAmount);
+        bytes memory rollbackMessageData = coordinator.encodeBridgeMessage(
+            BridgeMessage({
+                sender: bytes32(0),
+                recipient: bridgeMessage.sender,
+                sourceWhitelabel: bytes32(0),
+                destinationWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+                amount: bridgeMessage.amount
+            })
+        );
 
         vm.expectCall(
             localAdapter,
@@ -276,8 +302,15 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
     }
 
     function test_shouldEmit_MessageOut() public {
-        bytes memory rollbackMessageData =
-            coordinator.encodeBridgeMessage(bytes32(0), originalRemoteSender, originalAmount);
+        bytes memory rollbackMessageData = coordinator.encodeBridgeMessage(
+            BridgeMessage({
+                sender: bytes32(0),
+                recipient: originalRemoteSender,
+                sourceWhitelabel: bytes32(0),
+                destinationWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+                amount: originalAmount
+            })
+        );
 
         vm.expectEmit();
         emit BridgeCoordinator.MessageOut(bridgeType, remoteChainId, messageId, rollbackMessageData);
@@ -293,8 +326,18 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
     }
 
     function test_shouldEmit_BridgedOut() public {
+        BridgeMessage memory rollbackBridgeMessage = BridgeMessage({
+            sender: bytes32(0),
+            recipient: originalRemoteSender,
+            sourceWhitelabel: bytes32(0),
+            destinationWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+            amount: originalAmount
+        });
+
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedOut(sender, address(0), originalRemoteSender, originalAmount, messageId);
+        emit BridgeMessageCoordinator.BridgedOut(
+            sender, address(0), originalRemoteSender, originalAmount, messageId, rollbackBridgeMessage
+        );
 
         vm.prank(sender);
         coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "");
@@ -315,11 +358,19 @@ contract BridgeCoordinator_SettleInboundBridge_BridgeMessage_Test is
     function setUp() public override {
         super.setUp();
 
-        messageData = coordinator.encodeBridgeMessage(remoteSender, bytes32(uint256(uint160(recipient))), 500);
+        bridgeMessage = BridgeMessage({
+            sender: remoteSender,
+            recipient: recipient.toBytes32WithLowAddress(),
+            sourceWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+            destinationWhitelabel: destWhitelabel,
+            amount: 500
+        });
+        messageData = coordinator.encodeBridgeMessage(bridgeMessage);
     }
 
     function test_shouldStoreFailedMessage_whenRecipientIsZero() public {
-        messageData = coordinator.encodeBridgeMessage(remoteSender, bytes32(0), 500);
+        bridgeMessage.recipient = bytes32(0);
+        messageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
         vm.expectEmit();
         emit BridgeCoordinator.MessageExecutionFailed(messageId);
@@ -332,7 +383,8 @@ contract BridgeCoordinator_SettleInboundBridge_BridgeMessage_Test is
     }
 
     function test_shouldStoreFailedMessage_whenAmountIsZero() public {
-        messageData = coordinator.encodeBridgeMessage(remoteSender, remoteRecipient, 0);
+        bridgeMessage.amount = 0;
+        messageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
         vm.expectEmit();
         emit BridgeCoordinator.MessageExecutionFailed(messageId);
@@ -344,22 +396,26 @@ contract BridgeCoordinator_SettleInboundBridge_BridgeMessage_Test is
         assertEq(coordinator.failedMessageExecutions(messageId), failedMessageHash);
     }
 
-    function testFuzz_shouldUnlockTokens(address _recipient, uint256 amount) public {
+    function testFuzz_shouldReleaseShareToken(address _recipient, uint256 amount) public {
         vm.assume(_recipient != address(0));
         vm.assume(amount > 0);
 
-        messageData =
-            coordinator.encodeBridgeMessage(remoteSender, coordinator.encodeOmnichainAddress(_recipient), amount);
-
-        vm.expectCall(share, abi.encodeWithSelector(IERC20.transfer.selector, _recipient, amount));
+        bridgeMessage.recipient = _recipient.toBytes32WithLowAddress();
+        bridgeMessage.amount = amount;
+        messageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
         vm.prank(localAdapter);
         coordinator.settleInboundMessage(bridgeType, remoteChainId, remoteAdapter, messageData, messageId);
+
+        (address whitelabel_, address receiver_, uint256 amount_) = coordinator.lastReleaseCall();
+        assertEq(whitelabel_, destWhitelabel.toAddressFromLowBytes());
+        assertEq(receiver_, _recipient);
+        assertEq(amount_, amount);
     }
 
     function test_shouldEmit_BridgedIn() public {
         vm.expectEmit();
-        emit BridgeMessageCoordinator.BridgedIn(remoteSender, recipient, 500, messageId);
+        emit BridgeMessageCoordinator.BridgedIn(remoteSender, recipient, 500, messageId, bridgeMessage);
 
         vm.prank(localAdapter);
         coordinator.settleInboundMessage(bridgeType, remoteChainId, remoteAdapter, messageData, messageId);
