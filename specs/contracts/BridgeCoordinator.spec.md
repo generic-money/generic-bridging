@@ -1,7 +1,7 @@
 # Contract Specification: BridgeCoordinator
 
 ## 1. Purpose & Context
-The BridgeCoordinator ecosystem consists of multiple coordinator contracts that manage cross-chain bridging of share tokens through various bridge protocols. The system includes:
+The BridgeCoordinator ecosystem consists of multiple coordinator contracts that manage cross-chain bridging of unit tokens through various bridge protocols.
 
 - **BridgeCoordinatorL1**: L1-specific coordinator that includes predeposit functionality for early chain deployments
 - **BridgeCoordinatorL2**: L2-specific coordinator that burns/mints tokens instead of transferring for proper supply management
@@ -19,9 +19,10 @@ The system uses a modular architecture with the following components:
 - **EmergencyManager**: Handles emergency pause functionality
 - **BridgeMessageCoordinator**: Coordinates bridge and rollback message operations
 - **PredepositCoordinator**: Manages predeposit functionality for L1
+- **IWhitelabeledUnit**: Interface for whitelabeled unit tokens that wrap underlying generic units with 1:1 parity
 
 ### Contract Surface
-- `shareToken (address)`: The address of the share token that this coordinator manages
+- `genericUnit (address)`: The address of the generic unit token that this coordinator manages
 - `bridgeTypes (mapping)`: Complex nested mapping structure storing bridge configurations
 - `failedMessageExecutions (mapping)`: Tracks failed message executions for rollback
 - Inherits from `AccessControlUpgradeable` and `ReentrancyGuardTransientUpgradeable` for role-based access control and reentrancy protection
@@ -43,15 +44,27 @@ The system uses a modular architecture with the following components:
 - `state`: The current state of predeposits for this chain (DISABLED, ENABLED, DISPATCHED, WITHDRAWN)
 - `chainId`: The chain ID of the destination chain
 - `predeposits`: Mapping of sender addresses to remote recipient addresses to predeposit amounts
-- `totalPredeposits`: The total amount of shares predeposited for this chain
+- `totalPredeposits`: The total amount of units predeposited for this chain
 
 #### Message Types
 - `Message`: Contains `messageType` (enum) and `data` (bytes payload)
 - `BridgeMessage`: Contains `omnichainSender`, `omnichainRecipient`, and `amount`
 
+#### Whitelabeled Unit Interface
+The `IWhitelabeledUnit` interface defines functionality for tokens that wrap underlying generic units:
+
+##### Events
+- `Wrapped(address indexed owner, uint256 amount)`: Emitted when underlying unit tokens are wrapped into whitelabeled tokens
+- `Unwrapped(address indexed owner, address indexed recipient, uint256 amount)`: Emitted when whitelabeled tokens are unwrapped back to underlying unit tokens
+
+##### Functions
+- `wrap(address owner, uint256 amount) external`: Wraps underlying unit tokens into whitelabeled tokens with 1:1 parity
+- `unwrap(address owner, address recipient, uint256 amount) external`: Unwraps whitelabeled tokens back to underlying unit tokens
+- `genericUnit() external view returns (address)`: Returns the address of the underlying generic unit token
+
 ### Custom Errors
 #### BridgeCoordinator Errors
-- `ZeroShareToken()`: Thrown when share token address is zero during initialization
+- `ZeroGenericUnit()`: Thrown when generic unit token address is zero during initialization
 - `ZeroAdmin()`: Thrown when admin address is zero during initialization
 - `NoLocalBridgeAdapter()`: Thrown when no local bridge adapter is configured for the specified bridge type
 - `NoRemoteBridgeAdapter()`: Thrown when no remote bridge adapter is configured for the bridge type and chain ID
@@ -60,12 +73,17 @@ The system uses a modular architecture with the following components:
 - `CallerNotSelf()`: Thrown when tryReleaseTokens is called by an external address
 - `UnsupportedMessageType(uint8 messageType)`: Thrown when an unsupported message type is encountered during inbound settlement
 
+#### L1 Coordinator Errors
+- `IncorrectEscrowBalance()`: Thrown when the amount of unit tokens restricted does not match the expected amount
+
 #### AdapterManager Errors
 - `CoordinatorMismatch()`: Thrown when bridge adapter's coordinator doesn't match this contract
 - `BridgeTypeMismatch()`: Thrown when bridge adapter's type doesn't match the expected type
-- `AdapterNotInInboundList()`: Thrown when attempting to swap inbound adapter that is not in the inbound-only list
+- `IsOutboundAdapter()`: Thrown when attempting to mark outbound adapter as inbound-only
+- `IsNotAdapter()`: Thrown when attempting to swap an adapter that is not in the inbound-only list
 
 #### BridgeMessage Errors
+- `BridgeMessage_InvalidOnBehalf()`: Thrown when the onBehalf parameter is zero
 - `BridgeMessage_InvalidRecipient()`: Thrown when the decoded recipient address is zero
 - `BridgeMessage_InvalidRemoteRecipient()`: Thrown when the remote recipient parameter is zero
 - `BridgeMessage_InvalidAmount()`: Thrown when the bridge amount is zero
@@ -79,6 +97,7 @@ The system uses a modular architecture with the following components:
 - `Predeposit_DispatchNotEnabled()`: Thrown when dispatching predeposits is not enabled
 - `Predeposit_WithdrawalsNotEnabled()`: Thrown when withdrawals are not enabled
 - `Predeposit_ChainIdAlreadySet()`: Thrown when the chain ID is already set
+- `Predeposit_ZeroOnBehalf()`: Thrown when the onBehalf parameter is zero
 - `Predeposit_ZeroRemoteRecipient()`: Thrown when the remote recipient parameter is zero
 - `Predeposit_ZeroRecipient()`: Thrown when the recipient address is zero
 - `Predeposit_ZeroAmount()`: Thrown when the bridge amount is zero
@@ -90,8 +109,8 @@ The system uses a modular architecture with the following components:
 - `MessageOut(uint16 bridgeType, uint256 destChainId, bytes32 messageId, bytes messageData)`: Emitted when a cross-chain message is dispatched
 - `MessageIn(uint16 bridgeType, uint256 srcChainId, bytes32 messageId, bytes messageData)`: Emitted when a cross-chain message is received
 - `MessageExecutionFailed(bytes32 messageId)`: Emitted when execution of an inbound message fails
-- `BridgedOut(address sender, bytes32 remoteRecipient, uint256 amount, bytes32 messageId)`: Emitted when shares are bridged out to another chain
-- `BridgedIn(bytes32 remoteSender, address recipient, uint256 amount, bytes32 messageId)`: Emitted when shares are bridged in from another chain
+- `BridgedOut(address sender, address indexed owner, bytes32 indexed remoteRecipient, uint256 amount, bytes32 indexed messageId, BridgeMessage messageData)`: Emitted when units are bridged out to another chain
+- `BridgedIn(bytes32 indexed remoteSender, address indexed recipient, uint256 amount, bytes32 indexed messageId, BridgeMessage messageData)`: Emitted when units are bridged in from another chain
 - `BridgeRollbackedOut(bytes32 rollbackedMessageId, bytes32 messageId)`: Emitted when a rollback bridge operation is initiated
 
 #### Adapter Management Events
@@ -101,11 +120,12 @@ The system uses a modular architecture with the following components:
 - `RemoteOutboundBridgeAdapterUpdated(uint16 bridgeType, uint256 chainId, bytes32 adapter)`: Emitted when the outbound remote bridge adapter is updated
 
 #### Predeposit Events (L1 only)
-- `Predeposited(bytes32 chainNickname, address sender, bytes32 remoteRecipient, uint256 amount)`: Emitted when users predeposit tokens for future bridging
+- `Predeposited(bytes32 indexed chainNickname, address sender, address indexed owner, bytes32 indexed remoteRecipient, uint256 amount)`: Emitted when users predeposit tokens for future bridging
 - `PredepositBridgedOut(bytes32 chainNickname, bytes32 messageId)`: Emitted when a predeposit has been successfully bridged out
-- `PredepositWithdrawn(bytes32 chainNickname, address sender, bytes32 remoteRecipient, address recipient, uint256 amount)`: Emitted when a predeposit has been withdrawn back by the original sender
+- `PredepositWithdrawn(bytes32 indexed chainNickname, address indexed owner, bytes32 indexed remoteRecipient, address recipient, uint256 amount)`: Emitted when a predeposit has been withdrawn back by the original owner
 - `PredepositStateChanged(bytes32 chainNickname, PredepositState newState)`: Emitted when the predeposit state for a chain nickname changes
 - `ChainIdAssignedToNickname(bytes32 chainNickname, uint256 chainId)`: Emitted when a chain ID is assigned to a chain nickname
+- `WhitelabelAssignedToNickname(bytes32 indexed chainNickname, bytes32 indexed whitelabel)`: Emitted when a whitelabeled unit address is assigned to a nickname for a specific chain
 
 ## 3. Function Specifications
 
@@ -113,9 +133,9 @@ The system uses a modular architecture with the following components:
 #### Initialization
 - `constructor()`
   - Disables initializers for the implementation contract to prevent direct initialization
-- `initialize(address _shareToken, address _admin) external initializer`
-  - Initializes the coordinator with share token and admin addresses. Both must be non-zero
-  - Sets the share token address and grants `DEFAULT_ADMIN_ROLE` to the specified admin
+- `initialize(address _genericUnit, address _admin) external initializer`
+  - Initializes the coordinator with generic unit token and admin addresses. Both must be non-zero
+  - Sets the generic unit token address and grants `DEFAULT_ADMIN_ROLE` to the specified admin
 
 #### Message Coordination
 - `settleInboundMessage(uint16 bridgeType, uint256 chainId, bytes32 remoteSender, bytes calldata messageData, bytes32 messageId) external nonReentrant`
@@ -132,21 +152,24 @@ The system uses a modular architecture with the following components:
   - Calls the bridge adapter with the provided parameters and emits `MessageOut`
 
 #### Token Management (Virtual Functions)
-- `_restrictTokens(address owner, uint256 amount) internal virtual`
-  - Virtual function for token restriction during outbound bridging
-  - Base implementation: transfers tokens from owner to coordinator using `safeTransferFrom`
-  - L2 implementation: burns tokens from owner using `IERC20Mintable.burn`
-- `_releaseTokens(address receiver, uint256 amount) internal virtual`
-  - Virtual function for token release during inbound bridging
-  - Base implementation: transfers tokens from coordinator to receiver using `safeTransfer`
-  - L2 implementation: mints tokens to receiver using `IERC20Mintable.mint`
+- `_restrictUnits(address whitelabel, address owner, uint256 amount) internal virtual`
+  - Virtual function for unit restriction during outbound bridging
+  - Takes a whitelabel parameter for supporting whitelabeled unit tokens (zero address for native units)
+  - L1 implementation: transfers units from owner to coordinator using `safeTransferFrom`
+  - L2 implementation: burns units from owner using `IERC20Mintable.burn`
+- `_releaseUnits(address whitelabel, address receiver, uint256 amount) internal virtual`
+  - Virtual function for unit release during inbound bridging
+  - Takes a whitelabel parameter for supporting whitelabeled unit tokens (zero address for native units)
+  - L1 implementation: transfers units from coordinator to receiver using `safeTransfer`
+  - L2 implementation: mints units to receiver using `IERC20Mintable.mint`
 
 ### BridgeMessageCoordinator Functions
 #### Bridge Operations
-- `bridge(uint16 bridgeType, uint256 chainId, bytes32 remoteRecipient, uint256 amount, bytes calldata bridgeParams) external payable nonReentrant returns (bytes32 messageId)`
-  - Preconditions: `amount > 0`, `remoteRecipient != bytes32(0)`, local and remote adapters must be configured
-  - Restricts tokens via `_restrictTokens`, encodes bridge message, and dispatches via `_dispatchMessage`
-  - Emits `BridgedOut` event with sender, recipient, amount, and message ID
+- `bridge(uint16 bridgeType, uint256 chainId, address onBehalf, bytes32 remoteRecipient, address sourceWhitelabel, bytes32 destinationWhitelabel, uint256 amount, bytes calldata bridgeParams) external payable nonReentrant returns (bytes32 messageId)`
+  - Preconditions: `onBehalf != address(0)`, `amount > 0`, `remoteRecipient != bytes32(0)`, local and remote adapters must be configured
+  - Supports whitelabeled units through sourceWhitelabel and destinationWhitelabel parameters
+  - Restricts units via `_restrictUnits`, encodes bridge message, and dispatches via `_dispatchMessage`
+  - Emits `BridgedOut` event with sender, owner, recipient, amount, and message ID
 - `rollback(uint16 bridgeType, uint256 originalChainId, bytes calldata originalMessageData, bytes32 originalMessageId, bytes calldata bridgeParams) external payable nonReentrant returns (bytes32 rollbackMessageId)`
   - Validates failed message execution exists and matches provided data
   - Extracts original sender from failed message and creates rollback message
@@ -155,7 +178,7 @@ The system uses a modular architecture with the following components:
 #### Message Processing
 - `_settleInboundBridgeMessage(bytes memory messageData, bytes32 messageId) internal`
   - Decodes bridge message data and validates recipient and amount
-  - Releases tokens via `_releaseTokens` and emits `BridgedIn` event
+  - Releases units via `_releaseUnits` and emits `BridgedIn` event
 - `encodeBridgeMessage(bytes32 remoteSender, bytes32 remoteRecipient, uint256 amount) public pure returns (bytes memory)`
   - Utility function to encode BRIDGE type messages with sender, recipient, and amount data
 
@@ -177,15 +200,16 @@ The system uses a modular architecture with the following components:
 
 ### PredepositCoordinator Functions (L1 Only)
 #### Predeposit Lifecycle
-- `predeposit(bytes32 chainNickname, bytes32 remoteRecipient, uint256 amount) external nonReentrant`
-  - Allows users to predeposit shares for future bridging when chain is in ENABLED state
-  - Restricts tokens immediately and tracks predeposit amount per sender/recipient pair
-- `bridgePredeposit(uint16 bridgeType, bytes32 chainNickname, address sender, bytes32 remoteRecipient, bytes calldata bridgeParams) external payable nonReentrant returns (bytes32 messageId)`
-  - Bridges predeposited shares when chain is in DISPATCHED state
+- `predeposit(bytes32 chainNickname, address onBehalf, bytes32 remoteRecipient, uint256 amount) external nonReentrant`
+  - Allows users to predeposit units for future bridging when chain is in ENABLED state
+  - Includes onBehalf parameter to specify the owner of the predeposit
+  - Restricts units immediately and tracks predeposit amount per owner/recipient pair
+- `bridgePredeposit(uint16 bridgeType, bytes32 chainNickname, address onBehalf, bytes32 remoteRecipient, bytes calldata bridgeParams) external payable nonReentrant returns (bytes32 messageId)`
+  - Bridges predeposited units when chain is in DISPATCHED state
   - Deletes predeposit record and dispatches bridge message
-- `withdrawPredeposit(bytes32 chainNickname, bytes32 remoteRecipient, address recipient) external nonReentrant`
-  - Allows withdrawal of predeposited shares when chain is in WITHDRAWN state
-  - Releases tokens back to specified recipient address
+- `withdrawPredeposit(bytes32 chainNickname, address onBehalf, bytes32 remoteRecipient, address recipient) external nonReentrant`
+  - Allows withdrawal of predeposited units when chain is in WITHDRAWN state
+  - Releases units back to specified recipient address
 
 #### State Management
 - `enablePredeposits(bytes32 chainNickname) external onlyRole(PREDEPOSIT_MANAGER_ROLE)`
@@ -216,10 +240,10 @@ The system uses a modular architecture with the following components:
   - Gets the predeposit state for the specified chain nickname
 - `getChainIdForNickname(bytes32 chainNickname) external view returns (uint256)` (L1 only)
   - Gets the chain ID assigned to the specified chain nickname
-- `getPredeposit(bytes32 chainNickname, address sender, bytes32 remoteRecipient) external view returns (uint256)` (L1 only)
-  - Gets the predeposited amount for a given sender and remote recipient
+- `getPredeposit(bytes32 chainNickname, address onBehalf, bytes32 remoteRecipient) external view returns (uint256)` (L1 only)
+  - Gets the predeposited amount for a given onBehalf address and remote recipient
 - `getTotalPredeposits(bytes32 chainNickname) external view returns (uint256)` (L1 only)
-  - Gets the total amount of shares predeposited for the specified chain nickname
+  - Gets the total amount of units predeposited for the specified chain nickname
 
 ## 4. Behavioural Notes
 - All adapter calls are non-reentrant because the hub inherits `ReentrancyGuard`.
@@ -232,6 +256,7 @@ The system uses a modular architecture with the following components:
 - Adapters MUST accept calls only from their designated coordinator and forward cross-chain messages only to/from other coordinators to maintain the trust boundary.
 - Adapters must be configured on both local and remote chains with matching bridge types.
 - For L2 deployments, use `BridgeCoordinatorL2` which overrides token handling to burn/mint instead of transfer.
-- Share tokens must implement `IERC20Mintable` interface for L2 coordinator burn/mint operations.
+- Generic unit tokens must implement `IERC20Mintable` interface for L2 coordinator burn/mint operations.
+- Whitelabeled units must implement `IWhitelabeledUnit` interface for wrapping/unwrapping functionality on L1.
 - Monitoring should track `BridgedOut` and `BridgedIn` events to ensure proper cross-chain token accounting.
 - Governance should manage adapter configurations through the owner role, preferably via timelock for security.
