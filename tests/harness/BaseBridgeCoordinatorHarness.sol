@@ -16,6 +16,10 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
         return _initializableStorageSlot();
     }
 
+    function exposed_generateMessageId(uint16 bridgeType, uint256 remoteChainId) external returns (bytes32) {
+        return _generateMessageId(bridgeType, remoteChainId);
+    }
+
     function workaround_setOutboundLocalBridgeAdapter(uint16 bridgeType, address adapter) external {
         bridgeTypes[bridgeType].local.outbound = IBridgeAdapter(adapter);
     }
@@ -47,5 +51,9 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
 
     function workaround_setFailedMessageExecution(bytes32 messageId, bytes32 messageHash) external {
         failedMessageExecutions[messageId] = messageHash;
+    }
+
+    function workaround_setNonce(uint256 _nonce) external {
+        nonce = _nonce;
     }
 }
