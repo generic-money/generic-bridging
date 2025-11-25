@@ -109,6 +109,7 @@ contract LineaBridgeAdapterTest is Test {
     address internal refundAddress = makeAddr("refundAddress");
     address internal srcWhitelabel = address(0);
     bytes32 internal destWhitelabel = bytes32(0);
+    bytes32 internal messageId = keccak256("messageId");
 
     uint16 internal constant BRIDGE_TYPE = 2;
     uint256 internal constant L2_CHAIN_ID = 110;
@@ -177,7 +178,6 @@ contract LineaBridgeAdapterTest is Test {
         adapter.setMessageService(address(replacement), L2_CHAIN_ID);
 
         bytes memory messageData = abi.encodePacked(uint256(1));
-        bytes32 messageId = keccak256(abi.encodePacked(uint256(1)));
 
         vm.expectRevert(BaseAdapter.UnauthorizedCaller.selector);
         vm.prank(address(messageService));
@@ -187,7 +187,7 @@ contract LineaBridgeAdapterTest is Test {
     function test_bridge_revertsWhenCallerNotCoordinator() public {
         bytes memory payload = abi.encodePacked(uint256(123));
         vm.expectRevert(BaseAdapter.UnauthorizedCaller.selector);
-        adapter.bridge(L2_CHAIN_ID, REMOTE_ADAPTER, payload, refundAddress, "");
+        adapter.bridge(L2_CHAIN_ID, REMOTE_ADAPTER, payload, refundAddress, "", messageId);
     }
 
     function test_bridge_forwardsMessageAndReturnsId() public {
@@ -203,22 +203,15 @@ contract LineaBridgeAdapterTest is Test {
             })
         );
 
-        uint32 nonceBefore = adapter.nonce();
-        uint16 bridgeType = adapter.bridgeType();
-        uint256 timestampBefore = block.timestamp;
-
         vm.prank(address(coordinator));
-        bytes32 messageId = adapter.bridge(L2_CHAIN_ID, REMOTE_ADAPTER, payload, refundAddress, "");
+        adapter.bridge(L2_CHAIN_ID, REMOTE_ADAPTER, payload, refundAddress, "", messageId);
 
-        bytes32 expectedMessageId = keccak256(abi.encodePacked(L2_CHAIN_ID, bridgeType, timestampBefore, nonceBefore));
-
-        assertEq(messageId, expectedMessageId);
         assertEq(messageService.lastTo(), address(uint160(uint256(REMOTE_ADAPTER))));
         assertEq(messageService.lastFee(), 0);
         assertEq(messageService.lastValue(), 0);
         assertEq(
             messageService.lastCalldata(),
-            abi.encodeCall(ILineaBridgeAdapter.settleInboundBridge, (payload, expectedMessageId))
+            abi.encodeCall(ILineaBridgeAdapter.settleInboundBridge, (payload, messageId))
         );
         assertEq(messageService.sendCount(), 1);
     }
@@ -235,14 +228,13 @@ contract LineaBridgeAdapterTest is Test {
         vm.expectCall(refundAddress, fee, "");
 
         vm.prank(address(coordinator));
-        adapter.bridge{ value: fee }(L2_CHAIN_ID, REMOTE_ADAPTER, payload, refundAddress, "");
+        adapter.bridge{ value: fee }(L2_CHAIN_ID, REMOTE_ADAPTER, payload, refundAddress, "", messageId);
 
         assertEq(refundAddress.balance, fee, "excess fee not refunded");
     }
 
     function test_settleInboundBridge_revertsWhenUnregisteredService() public {
         bytes memory messageData = abi.encodePacked(uint256(1));
-        bytes32 messageId = bytes32(uint256(1));
 
         vm.expectRevert(BaseAdapter.UnauthorizedCaller.selector);
         vm.prank(makeAddr("randomService"));
@@ -264,8 +256,6 @@ contract LineaBridgeAdapterTest is Test {
                 amount: 100
             })
         );
-
-        bytes32 messageId = bytes32(uint256(1));
 
         vm.prank(address(messageService));
         adapter.settleInboundBridge(messageData, messageId);

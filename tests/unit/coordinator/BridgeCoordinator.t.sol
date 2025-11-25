@@ -48,7 +48,7 @@ abstract contract BridgeCoordinatorTest is Test {
         );
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), abi.encode(messageId));
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), "");
 
         coordinator.workaround_setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);

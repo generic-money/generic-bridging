@@ -22,6 +22,12 @@ abstract contract BridgeCoordinator_BridgeMessage_Test is BridgeCoordinatorTest 
 }
 
 contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_BridgeMessage_Test {
+    function setUp() public override {
+        super.setUp();
+
+        messageId = coordinator.workaround_nextMessageId(bridgeType, remoteChainId);
+    }
+
     function test_shouldRevert_whenNoOutboundLocalAdapter() public {
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, address(0)); // remove local adapter
 
@@ -76,7 +82,8 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
                 remoteAdapter,
                 bridgeMessageData,
                 sender, // caller as refund address
-                bridgeParams
+                bridgeParams,
+                messageId
             )
         );
 
@@ -145,6 +152,8 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         originalMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
         failedMessagesHash = keccak256(abi.encode(remoteChainId, originalMessageData));
         coordinator.workaround_setFailedMessageExecution(originalMessageId, failedMessagesHash);
+
+        messageId = coordinator.workaround_nextMessageId(bridgeType, remoteChainId);
     }
 
     function test_shouldRevert_whenNoOutboundLocalAdapter() public {
@@ -257,7 +266,8 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
                 remoteAdapter,
                 rollbackMessageData,
                 caller, // caller as refund address
-                bridgeParams
+                bridgeParams,
+                messageId
             )
         );
 

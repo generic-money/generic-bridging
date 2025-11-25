@@ -31,7 +31,6 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
     bytes32 remoteRecipient = bytes32(uint256(uint160(makeAddr("remoteRecipient"))));
     address srcWhitelabel = address(0);
     bytes32 destWhitelabel = bytes32(0);
-    bytes32 messageId = keccak256("messageId");
 
     uint16 bridgeType = 7;
     uint256 remoteChainId = 42;
@@ -63,7 +62,7 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
         );
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), abi.encode(messageId));
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), "");
 
         vm.mockCall(unit, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
         vm.mockCall(unit, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
@@ -211,6 +210,8 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
         });
         bytes memory expectedBridgeMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
 
+        bytes32 messageId = coordinator.workaround_nextMessageId(bridgeType, remoteChainId);
+
         vm.expectEmit();
         emit BridgeMessageCoordinator.BridgedOut(caller, owner, remoteRecipient, amount, messageId, bridgeMessage);
         vm.expectEmit();
@@ -225,7 +226,8 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
                 remoteAdapter,
                 expectedBridgeMessageData,
                 caller, // caller as refund address
-                bridgeParams
+                bridgeParams,
+                messageId
             )
         );
 
