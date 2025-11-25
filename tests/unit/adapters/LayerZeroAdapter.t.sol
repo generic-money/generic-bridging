@@ -104,7 +104,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         vm.deal(address(coordinator), nativeFee);
         vm.prank(address(coordinator));
-        l1Adapter.bridge{ value: nativeFee }(CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId);
+        l1Adapter.bridge{ value: nativeFee }(
+            CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId
+        );
 
         assertTrue(hasPendingPackets(uint16(EID_L2), remoteAdapterId), "packet not queued");
 
@@ -121,7 +123,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         vm.deal(address(coordinator), overpayAmount);
         vm.prank(address(coordinator));
-        l1Adapter.bridge{ value: overpayAmount }(CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId);
+        l1Adapter.bridge{ value: overpayAmount }(
+            CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId
+        );
 
         assertEq(refundAddress.balance, 1 ether, "refund amount incorrect");
     }
@@ -140,7 +144,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.deal(address(coordinator), nativeFee);
         vm.expectRevert(abi.encodeWithSelector(LayerZeroAdapter.PeersMismatch.selector, badPeer, remoteAdapterId));
         vm.prank(address(coordinator));
-        l1Adapter.bridge{ value: nativeFee }(CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId);
+        l1Adapter.bridge{ value: nativeFee }(
+            CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId
+        );
 
         vm.prank(owner);
         l1Adapter.setPeer(EID_L2, originalPeer);

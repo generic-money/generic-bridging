@@ -210,8 +210,7 @@ contract LineaBridgeAdapterTest is Test {
         assertEq(messageService.lastFee(), 0);
         assertEq(messageService.lastValue(), 0);
         assertEq(
-            messageService.lastCalldata(),
-            abi.encodeCall(ILineaBridgeAdapter.settleInboundBridge, (payload, messageId))
+            messageService.lastCalldata(), abi.encodeCall(ILineaBridgeAdapter.settleInboundBridge, (payload, messageId))
         );
         assertEq(messageService.sendCount(), 1);
     }
