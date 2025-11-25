@@ -121,7 +121,8 @@ abstract contract BridgeCoordinator is
         require(address(adapter) != address(0), NoOutboundLocalBridgeAdapter());
         require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());
 
-        messageId = adapter.bridge{ value: msg.value }(chainId, remoteAdapter, messageData, msg.sender, bridgeParams);
+        messageId = _generateMessageId(bridgeType, chainId);
+        adapter.bridge{ value: msg.value }(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId);
 
         emit MessageOut(bridgeType, chainId, messageId, messageData);
     }
@@ -173,5 +174,20 @@ abstract contract BridgeCoordinator is
         } else {
             revert UnsupportedMessageType(uint8(message.messageType));
         }
+    }
+
+    /**
+     * @notice Returns the messageId for the bridging and receiving of the units
+     * @dev Generates a unique messageId based on chain IDs, bridge type, timestamp, and nonce
+     * @param bridgeType The bridge type identifier for the bridge operation
+     * @param dstChainId The destination chain ID for the bridge operation
+     * @return The bytes32 encoded messageId of the bridge transaction
+     */
+    function _generateMessageId(uint16 bridgeType, uint256 dstChainId) internal returns (bytes32) {
+        unchecked {
+            ++nonce;
+        }
+        // forge-lint: disable-next-line(asm-keccak256)
+        return keccak256(abi.encodePacked(block.chainid, dstChainId, bridgeType, block.timestamp, nonce));
     }
 }
