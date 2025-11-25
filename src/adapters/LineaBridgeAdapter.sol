@@ -49,8 +49,8 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
 
     constructor(IBridgeCoordinator _coordinator, address owner) BaseAdapter(_coordinator, owner) { }
 
-    /// @inheritdoc BaseAdapter
-    function _dispatchBridge(
+    /// @inheritdoc IBridgeAdapter
+    function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,
         bytes calldata message,
@@ -58,10 +58,11 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
         bytes calldata bridgeParams,
         bytes32 messageId
     )
-        internal
-        virtual
-        override
+        external
+        payable
     {
+        require(msg.sender == bridgeCoordinator, UnauthorizedCaller());
+
         IMessageService messageService = IMessageService(chainIdToMessageService[chainId]);
         require(address(messageService) != address(0), InvalidZeroAddress());
 
@@ -87,7 +88,8 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
         require(chainId != 0, UnauthorizedCaller());
 
         bytes32 remoteSender = Bytes32AddressLib.toBytes32WithLowAddress(messageService.sender());
-        coordinator.settleInboundMessage(bridgeType(), chainId, remoteSender, messageData, messageId);
+        IBridgeCoordinator(bridgeCoordinator)
+            .settleInboundMessage(bridgeType(), chainId, remoteSender, messageData, messageId);
     }
 
     /// @inheritdoc IBridgeAdapter
@@ -98,8 +100,8 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
         return 0;
     }
 
-    /// @inheritdoc BaseAdapter
-    function bridgeType() public pure override returns (uint16) {
+    /// @inheritdoc IBridgeAdapter
+    function bridgeType() public pure returns (uint16) {
         return BridgeTypes.LINEA;
     }
 

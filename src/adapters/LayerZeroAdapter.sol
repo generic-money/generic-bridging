@@ -62,8 +62,8 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         OApp(endpoint, owner)
     { }
 
-    /// @inheritdoc BaseAdapter
-    function _dispatchBridge(
+    /// @inheritdoc IBridgeAdapter
+    function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,
         bytes calldata message,
@@ -71,9 +71,11 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         bytes calldata bridgeParams,
         bytes32 messageId
     )
-        internal
-        override
+        external
+        payable
     {
+        require(msg.sender == bridgeCoordinator, UnauthorizedCaller());
+
         uint32 dstEid = chainIdToEndpointId[chainId];
         require(dstEid != 0, InvalidZeroAddress());
 
@@ -107,7 +109,8 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
 
         (bytes memory messageData, bytes32 messageId) = abi.decode(payload, (bytes, bytes32));
 
-        coordinator.settleInboundMessage(bridgeType(), chainId, origin.sender, messageData, messageId);
+        IBridgeCoordinator(bridgeCoordinator)
+            .settleInboundMessage(bridgeType(), chainId, origin.sender, messageData, messageId);
 
         emit MessageGuidRecorded(messageId, guid, chainId, origin.srcEid);
     }
@@ -125,15 +128,15 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         require(chainId != 0, InvalidZeroAddress());
         uint32 dstEid = chainIdToEndpointId[chainId];
 
-        bytes memory messagePayload = abi.encode(message, getMessageId(chainId));
+        bytes memory messagePayload = abi.encode(message, bytes32(0)); // placeholder for messageId
 
         // If bridgeParams is 0x, combineOptions will set whatever is defined in OAppOptionsType3 for this specific
         // dstEid This allows us to define custom gas for each chain we want to call
         return _quote(dstEid, messagePayload, combineOptions(dstEid, SEND, bridgeParams), false).nativeFee;
     }
 
-    /// @inheritdoc BaseAdapter
-    function bridgeType() public pure override returns (uint16) {
+    /// @inheritdoc IBridgeAdapter
+    function bridgeType() public pure returns (uint16) {
         return BridgeTypes.LAYER_ZERO;
     }
 
