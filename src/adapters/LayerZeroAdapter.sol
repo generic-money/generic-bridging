@@ -34,12 +34,16 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         bytes32 indexed messageId, bytes32 indexed guid, uint256 indexed chainId, uint32 endpointId
     );
 
-    /// @notice Thrown when the coordinator-provided remote adapter does not match the LayerZero peer configuration.
-    /// @param configuredPeer The peer address registered in LayerZero's endpoint for the destination.
-    /// @param coordinatorAdapter The adapter identifier supplied by the BridgeCoordinator call.
+    /**
+     * @notice Thrown when the coordinator-provided remote adapter does not match the LayerZero peer configuration.
+     * @param configuredPeer The peer address registered in LayerZero's endpoint for the destination.
+     * @param coordinatorAdapter The adapter identifier supplied by the BridgeCoordinator call.
+     */
     error PeersMismatch(bytes32 configuredPeer, bytes32 coordinatorAdapter);
 
-    /// @notice Msg type for sending a string, for use in OAppOptionsType3 as an enforced option
+    /**
+     * @notice Msg type for sending a string, for use in OAppOptionsType3 as an enforced option
+     */
     uint16 public constant SEND = 1;
 
     /**
@@ -88,12 +92,14 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         _lzSend(dstEid, payload, options, MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }), refundAddress);
     }
 
-    /// @notice Invoked by OAppReceiver when EndpointV2.lzReceive is called
-    /// @dev   _origin    Metadata (source chain, sender address, nonce)
-    /// @dev   _guid      Global unique ID for tracking this message
-    /// @param payload    ABI-encoded bridge payload forwarded from the remote adapter.
-    /// @dev   executor   Executor address that delivered the message (unused here).
-    /// @dev   extraData  Additional data from the executor (unused here).
+    /**
+     * @notice Invoked by OAppReceiver when EndpointV2.lzReceive is called
+     * @dev   _origin    Metadata (source chain, sender address, nonce)
+     * @dev   _guid      Global unique ID for tracking this message
+     * @param payload    ABI-encoded bridge payload forwarded from the remote adapter.
+     * @dev   executor   Executor address that delivered the message (unused here).
+     * @dev   extraData  Additional data from the executor (unused here).
+     */
     function _lzReceive(
         Origin calldata origin,
         bytes32 guid,
@@ -175,16 +181,20 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         setPeer(endpointId, remoteAdapter);
     }
 
-    /// @notice Resolves the ownership diamond created by inheriting both Ownable2Step (via BaseAdapter)
-    ///         and Ownable (via OAppOptionsType3). The overrides forward control to Ownable2Step so the
-    ///         coordinator keeps its two-step ownership semantics while remaining compatible with OApp.
+    /**
+     * @notice Resolves the ownership diamond created by inheriting both Ownable2Step (via BaseAdapter)
+     * and Ownable (via OAppOptionsType3). The overrides forward control to Ownable2Step so the
+     * coordinator keeps its two-step ownership semantics while remaining compatible with OApp.
+     */
     function transferOwnership(address newOwner) public override(Ownable2Step, Ownable) {
         Ownable2Step.transferOwnership(newOwner);
     }
 
-    /// @notice Resolves the ownership diamond created by inheriting both Ownable2Step (via BaseAdapter)
-    ///         and Ownable (via OAppOptionsType3). The overrides forward control to Ownable2Step so the
-    ///         coordinator keeps its two-step ownership semantics while remaining compatible with OApp.
+    /**
+     * @notice Resolves the ownership diamond created by inheriting both Ownable2Step (via BaseAdapter)
+     * and Ownable (via OAppOptionsType3). The overrides forward control to Ownable2Step so the
+     * coordinator keeps its two-step ownership semantics while remaining compatible with OApp.
+     */
     function _transferOwnership(address newOwner) internal override(Ownable2Step, Ownable) {
         Ownable2Step._transferOwnership(newOwner);
     }
