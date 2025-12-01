@@ -30,6 +30,7 @@ abstract contract BaseAdapter is IBridgeAdapter, Ownable2Step {
     /**
      * @notice Initializes the base adapter with bridge type and coordinator
      * @param _coordinator The bridge coordinator contract address
+     * @param owner The owner address for the adapter
      */
     constructor(IBridgeCoordinator _coordinator, address owner) Ownable(owner) {
         bridgeCoordinator = address(_coordinator);
