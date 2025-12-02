@@ -20,6 +20,8 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+        with:
+          version: "v1.4.3"
 
       - name: "Install dependencies"
         run: "forge install"
@@ -38,6 +40,8 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+        with:
+          version: "v1.4.3"
 
       - name: "Install dependencies"
         run: "forge install"

@@ -21,6 +21,11 @@ abstract contract BaseBridgeCoordinator is
     address public genericUnit;
 
     /**
+     * @notice Incremental counter for unique message identification
+     */
+    uint256 public nonce;
+
+    /**
      * @notice Configuration for the local bridge adapter
      * @param outbound The local bridge adapter contract used for outbound messages
      * @param isAdapter Mapping of adapter addresses

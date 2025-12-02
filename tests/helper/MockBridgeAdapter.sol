@@ -13,18 +13,14 @@ contract MockBridgeAdapter is IBridgeAdapter {
         bytes message;
         address refundAddress;
         bytes bridgeParams;
+        bytes32 messageId;
     }
 
     BridgeCallParams public lastBridgeCall;
-    bytes32 public messageId;
 
     constructor(uint16 bridgeType_, address coordinator_) {
         _bridgeType = bridgeType_;
         _coordinator = coordinator_;
-    }
-
-    function returnMessageId(bytes32 messageId_) external {
-        messageId = messageId_;
     }
 
     function bridge(
@@ -32,11 +28,11 @@ contract MockBridgeAdapter is IBridgeAdapter {
         bytes32 remoteAdapter,
         bytes calldata message,
         address refundAddress,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        bytes32 messageId
     )
         external
         payable
-        returns (bytes32)
     {
         require(msg.value == estimateBridgeFee(chainId, message, bridgeParams), "Incorrect fee sent");
         lastBridgeCall = BridgeCallParams({
@@ -44,9 +40,9 @@ contract MockBridgeAdapter is IBridgeAdapter {
             remoteAdapter: remoteAdapter,
             message: message,
             refundAddress: refundAddress,
-            bridgeParams: bridgeParams
+            bridgeParams: bridgeParams,
+            messageId: messageId
         });
-        return messageId;
     }
 
     function estimateBridgeFee(uint256, bytes calldata, bytes calldata) public pure returns (uint256 nativeFee) {

@@ -25,4 +25,8 @@ contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
     function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal virtual override {
         lastReleaseCall = LastReleaseCall({ whitelabel: whitelabel, receiver: receiver, amount: amount });
     }
+
+    function workaround_nextMessageId(uint16 bridgeType, uint256 dstChainId) external view returns (bytes32) {
+        return keccak256(abi.encodePacked(block.chainid, dstChainId, bridgeType, block.timestamp, nonce + 1));
+    }
 }

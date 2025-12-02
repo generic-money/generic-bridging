@@ -87,13 +87,11 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
 
         // Bridge successfully
-        localAdapter.returnMessageId(messageId);
         vm.prank(user);
         bytes32 msgId = coordinator.bridge{ value: 1 ether }(
             bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
         );
 
-        assertEq(msgId, messageId);
         assertEq(gusd.balanceOf(address(coordinator)), 0);
         assertEq(unit.balanceOf(address(coordinator)), 100e18);
         bytes memory expectedMessage = coordinator.encodeBridgeMessage(
@@ -110,13 +108,15 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
             bytes32 remoteAdapter_,
             bytes memory message,
             address refundAddress,
-            bytes memory bridgeParams
+            bytes memory bridgeParams,
+            bytes32 messageId_
         ) = localAdapter.lastBridgeCall();
         assertEq(chainId_, chainId, "chain id mismatch");
         assertEq(remoteAdapter_, remoteAdapter, "remote adapter mismatch");
         assertEq(message, expectedMessage, "message mismatch");
         assertEq(refundAddress, user, "refund address mismatch");
         assertEq(bridgeParams, "bridge data", "bridge params mismatch");
+        assertEq(messageId_, msgId, "message id mismatch");
     }
 
     function test_bridge_inbound() public {
@@ -198,14 +198,11 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType2, chainId));
 
         // Rollback successfully via different bridge type
-        bytes32 rollbackMessageId = keccak256("rollbackMessageId");
-        localAdapter2.returnMessageId(rollbackMessageId);
         vm.prank(relayer);
         bytes32 rollbackMsgId = coordinator.rollback{ value: 1 ether }(
             bridgeType2, chainId, messageData, messageId, "rollback bridge data"
         );
 
-        assertEq(rollbackMsgId, rollbackMessageId);
         assertEq(coordinator.failedMessageExecutions(messageId), bytes32(0), "failed message execution not deleted");
         BridgeMessage memory expectedRollbackMessage = BridgeMessage({
             sender: bytes32(0),
@@ -220,13 +217,15 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
             bytes32 remoteAdapter_,
             bytes memory rollbackMessageData,
             address refundAddress,
-            bytes memory bridgeParams
+            bytes memory bridgeParams,
+            bytes32 messageId_
         ) = localAdapter2.lastBridgeCall();
         assertEq(chainId_, chainId, "chain id mismatch");
         assertEq(remoteAdapter_, remoteAdapter, "remote adapter mismatch");
         assertEq(rollbackMessageData, expectedRollbackMessageData, "message mismatch");
         assertEq(refundAddress, relayer, "refund address mismatch");
         assertEq(bridgeParams, "rollback bridge data", "bridge params mismatch");
+        assertEq(messageId_, rollbackMsgId, "rollback message id mismatch");
     }
 }
 
@@ -296,12 +295,10 @@ contract BridgeCoordinatorL1_Predeposit_IntegrationTest is BridgeCoordinatorL1In
         assertTrue(coordinator.supportsBridgeTypeFor(bridgeType, chainId));
 
         // Dispatch successfully
-        localAdapter.returnMessageId(messageId);
         vm.prank(relayer);
         bytes32 msgId =
             coordinator.bridgePredeposit{ value: 1 ether }(bridgeType, chainNickname, user, remoteUser, "bridge data");
 
-        assertEq(msgId, messageId);
         assertEq(unit.balanceOf(address(coordinator)), 400e18);
         assertEq(coordinator.getPredeposit(chainNickname, user, remoteUser), 0);
         bytes memory expectedMessage = coordinator.encodeBridgeMessage(
@@ -318,13 +315,15 @@ contract BridgeCoordinatorL1_Predeposit_IntegrationTest is BridgeCoordinatorL1In
             bytes32 remoteAdapter_,
             bytes memory message,
             address refundAddress,
-            bytes memory bridgeParams
+            bytes memory bridgeParams,
+            bytes32 messageId_
         ) = localAdapter.lastBridgeCall();
         assertEq(chainId_, chainId, "chain id mismatch");
         assertEq(remoteAdapter_, remoteAdapter, "remote adapter mismatch");
         assertEq(message, expectedMessage, "message mismatch");
         assertEq(refundAddress, relayer, "refund address mismatch");
         assertEq(bridgeParams, "bridge data", "bridge params mismatch");
+        assertEq(messageId_, msgId, "message id mismatch");
 
         // Fail to predeposit after enabling dispatch
         vm.expectRevert(PredepositCoordinator.Predeposit_NotEnabled.selector);

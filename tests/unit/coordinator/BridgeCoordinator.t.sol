@@ -48,7 +48,7 @@ abstract contract BridgeCoordinatorTest is Test {
         );
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), abi.encode(messageId));
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), "");
 
         coordinator.workaround_setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
@@ -175,5 +175,20 @@ contract BridgeCoordinator_EncodeDecodeOmnichainAddress_Test is BridgeCoordinato
         address decodedAddr = coordinator.decodeOmnichainAddress(oAddr);
 
         assertEq(decodedAddr, addr);
+    }
+}
+
+contract BridgeCoordinator_GenerateMessageId_Test is BridgeCoordinatorTest {
+    function testFuzz_shouldReturnMessageId(uint256 nonce, uint256 timestamp) public {
+        vm.assume(nonce < type(uint256).max);
+        vm.warp(timestamp);
+        coordinator.workaround_setNonce(nonce);
+
+        bytes32 expectedMessageId =
+            keccak256(abi.encodePacked(block.chainid, remoteChainId, bridgeType, timestamp, nonce + 1));
+
+        bytes32 messageId = coordinator.exposed_generateMessageId(bridgeType, remoteChainId);
+
+        assertEq(messageId, expectedMessageId);
     }
 }

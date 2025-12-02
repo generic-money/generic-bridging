@@ -55,6 +55,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
     address internal refundAddress = makeAddr("refundAddress");
     address internal srcWhitelabel = makeAddr("srcWhitelabel");
     bytes32 internal destWhitelabel = bytes32(uint256(uint160(address(makeAddr("destWhitelabel")))));
+    bytes32 internal messageId = keccak256("messageId");
 
     uint16 internal constant EID_L1 = 1;
     uint16 internal constant EID_L2 = 2;
@@ -103,11 +104,11 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         vm.deal(address(coordinator), nativeFee);
         vm.prank(address(coordinator));
-        bytes32 messageId =
-            l1Adapter.bridge{ value: nativeFee }(CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions);
+        l1Adapter.bridge{ value: nativeFee }(
+            CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId
+        );
 
         assertTrue(hasPendingPackets(uint16(EID_L2), remoteAdapterId), "packet not queued");
-        assertTrue(messageId != bytes32(0), "messageId not generated");
 
         bytes memory packet = getNextInflightPacket(uint16(EID_L2), remoteAdapterId);
         this._assertPacketFields(packet, message, messageId, bridgeOptions);
@@ -122,7 +123,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         vm.deal(address(coordinator), overpayAmount);
         vm.prank(address(coordinator));
-        l1Adapter.bridge{ value: overpayAmount }(CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions);
+        l1Adapter.bridge{ value: overpayAmount }(
+            CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId
+        );
 
         assertEq(refundAddress.balance, 1 ether, "refund amount incorrect");
     }
@@ -141,7 +144,9 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.deal(address(coordinator), nativeFee);
         vm.expectRevert(abi.encodeWithSelector(LayerZeroAdapter.PeersMismatch.selector, badPeer, remoteAdapterId));
         vm.prank(address(coordinator));
-        l1Adapter.bridge{ value: nativeFee }(CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions);
+        l1Adapter.bridge{ value: nativeFee }(
+            CHAIN_ID_L2, remoteAdapterId, message, refundAddress, bridgeOptions, messageId
+        );
 
         vm.prank(owner);
         l1Adapter.setPeer(EID_L2, originalPeer);
@@ -153,7 +158,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
 
         vm.expectRevert(BaseAdapter.InvalidZeroAddress.selector);
         vm.prank(address(coordinator));
-        l1Adapter.bridge(unconfiguredChain, remoteAdapterId, message, refundAddress, bytes(""));
+        l1Adapter.bridge(unconfiguredChain, remoteAdapterId, message, refundAddress, bytes(""), messageId);
     }
 
     function test_setRemoteEndpointConfigSetsMappingsAndPeer() public {
@@ -231,7 +236,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         Message memory decodedMessage = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
 
         bytes memory messageData = abi.encode(decodedMessage);
-        bytes32 messageId = keccak256("lz-inbound"); // Mock data in the messageId
+        messageId = keccak256("lz-inbound"); // Mock data in the messageId
         bytes memory payload = abi.encode(messageData, messageId);
 
         // Build a LayerZero packet sourced from the L2 adapter and destined for L1.
@@ -274,7 +279,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         bytes memory payload = abi.encode("fee-baseline");
         bytes memory options = bytes("");
 
-        bytes memory encodedPayload = abi.encode(payload, l1Adapter.getMessageId(CHAIN_ID_L2));
+        bytes memory encodedPayload = abi.encode(payload, bytes32(0));
 
         MessagingParams memory params = MessagingParams({
             dstEid: EID_L2, receiver: remoteAdapterId, message: encodedPayload, options: options, payInLzToken: false
@@ -293,7 +298,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         bytes memory payload = abi.encode("fee-options");
         bytes memory options = buildReceiveOptions(350_000);
 
-        bytes memory encodedPayload = abi.encode(payload, l1Adapter.getMessageId(CHAIN_ID_L2));
+        bytes memory encodedPayload = abi.encode(payload, bytes32(0));
 
         MessagingParams memory params = MessagingParams({
             dstEid: EID_L2, receiver: remoteAdapterId, message: encodedPayload, options: options, payInLzToken: false
@@ -362,7 +367,7 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.deal(user, nativeFee);
         vm.startPrank(user);
         vm.recordLogs();
-        bytes32 messageId = coordinator.bridge{ value: nativeFee }(
+        messageId = coordinator.bridge{ value: nativeFee }(
             BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeOptions
         );
         vm.stopPrank();

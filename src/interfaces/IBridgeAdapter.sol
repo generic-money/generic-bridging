@@ -14,18 +14,18 @@ interface IBridgeAdapter {
      * @param message Payload forwarded to the remote coordinator for settlement.
      * @param refundAddress Address to refund any excess fees or failed transactions.
      * @param bridgeParams Adapter-specific parameters used to quote and configure the bridge call.
-     * @return messageId Identifier returned by the bridge transport for reconciliation.
+     * @param messageId Unique identifier for tracking the cross-chain message.
      */
     function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,
         bytes calldata message,
         address refundAddress,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        bytes32 messageId
     )
         external
-        payable
-        returns (bytes32 messageId);
+        payable;
 
     /**
      * @notice Quotes the native fee required to execute a bridge call.
