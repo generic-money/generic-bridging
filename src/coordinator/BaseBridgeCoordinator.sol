@@ -23,7 +23,7 @@ abstract contract BaseBridgeCoordinator is
     /**
      * @notice Incremental counter for unique message identification
      */
-    uint256 public nonce;
+    uint64 public nonce;
 
     /**
      * @notice Configuration for the local bridge adapter

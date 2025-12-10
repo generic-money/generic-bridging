@@ -179,8 +179,8 @@ contract BridgeCoordinator_EncodeDecodeOmnichainAddress_Test is BridgeCoordinato
 }
 
 contract BridgeCoordinator_GenerateMessageId_Test is BridgeCoordinatorTest {
-    function testFuzz_shouldReturnMessageId(uint256 nonce, uint256 timestamp) public {
-        vm.assume(nonce < type(uint256).max);
+    function testFuzz_shouldReturnMessageId(uint64 nonce, uint256 timestamp) public {
+        vm.assume(nonce < type(uint64).max);
         vm.warp(timestamp);
         coordinator.workaround_setNonce(nonce);
 

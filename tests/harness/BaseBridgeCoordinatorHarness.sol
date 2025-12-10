@@ -53,7 +53,7 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
         failedMessageExecutions[messageId] = messageHash;
     }
 
-    function workaround_setNonce(uint256 _nonce) external {
+    function workaround_setNonce(uint64 _nonce) external {
         nonce = _nonce;
     }
 }
