@@ -5,6 +5,7 @@ import { Script, console } from "forge-std/Script.sol";
 import { Config } from "forge-std/Config.sol";
 
 import { GenericUnitL2 } from "lib/generic-protocol/src/unit/GenericUnitL2.sol";
+import { IERC7575Share } from "lib/generic-protocol/src/interfaces/IERC7575Share.sol";
 
 import { BridgeCoordinatorL2 } from "../src/BridgeCoordinatorL2.sol";
 import { LayerZeroAdapter } from "../src/adapters/LayerZeroAdapter.sol";
@@ -34,6 +35,8 @@ contract Check is Script, Config {
         // Unit token checks
         require(GenericUnitL2(unitToken).owner() == coordinator, "unit token owner mismatch");
         // Note: cannot check runtime code of GenericUnitL2 due to immutable args
+        // Check that unit token is NOT an IERC7575Share (L1 token) instead
+        require(!IERC7575Share(unitToken).supportsInterface(type(IERC7575Share).interfaceId), "unit token is L1 token");
 
         // Bridge Coordinator checks
         address coordinatorImpl = address(uint160(uint256(vm.load(coordinator, IMPLEMENTATION_SLOT))));
