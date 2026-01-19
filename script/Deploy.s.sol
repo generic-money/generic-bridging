@@ -85,9 +85,9 @@ contract Deploy is Script, Config {
 
         // Transfer DEFAULT_ADMIN_ROLE
         if (msg.sender != coordinatorRolesAdmin) {
-            BridgeCoordinator(coordinator).grantRole(BridgeCoordinator(coordinator).DEFAULT_ADMIN_ROLE(), msg.sender);
             BridgeCoordinator(coordinator)
-                .revokeRole(BridgeCoordinator(coordinator).DEFAULT_ADMIN_ROLE(), coordinatorRolesAdmin);
+                .grantRole(BridgeCoordinator(coordinator).DEFAULT_ADMIN_ROLE(), coordinatorRolesAdmin);
+            BridgeCoordinator(coordinator).revokeRole(BridgeCoordinator(coordinator).DEFAULT_ADMIN_ROLE(), msg.sender);
         }
         console.log("BridgeCoordinator DEFAULT_ADMIN_ROLE granted to:", coordinatorRolesAdmin);
 
