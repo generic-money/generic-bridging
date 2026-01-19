@@ -90,8 +90,8 @@ contract Deploy is Script, Config {
         // Save addresses to deployments.toml
         config.set("generic_unit_l2", unitToken);
         config.set("bridge_coordinator_l2", coordinator);
-        if (layerZeroAdapter != address(0)) config.set("layerzero_adapter", layerZeroAdapter);
-        if (lineaAdapter != address(0)) config.set("linea_adapter", lineaAdapter);
+        config.set("layerzero_adapter", layerZeroAdapter);
+        config.set("linea_adapter", lineaAdapter);
 
         // Log deployed addresses
         console.log("----------");
