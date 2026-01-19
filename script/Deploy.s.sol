@@ -6,8 +6,9 @@ import { Config } from "forge-std/Config.sol";
 
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
+import { GenericUnitL2 } from "lib/generic-protocol/src/unit/GenericUnitL2.sol";
+
 import { BridgeCoordinator } from "../src/coordinator/BridgeCoordinator.sol";
-import { BridgeCoordinatorL1 } from "../src/BridgeCoordinatorL1.sol";
 import { BridgeCoordinatorL2 } from "../src/BridgeCoordinatorL2.sol";
 import { LayerZeroAdapter } from "../src/adapters/LayerZeroAdapter.sol";
 import { LineaBridgeAdapter } from "../src/adapters/LineaBridgeAdapter.sol";
@@ -15,13 +16,18 @@ import { LineaBridgeAdapter } from "../src/adapters/LineaBridgeAdapter.sol";
 /// @dev `[{chain alias or id}.address]` must be present in deployments.toml
 /// otherwise config.set() reverts with ChainNotInitialized error
 contract Deploy is Script, Config {
-    /// forge script script/Deploy.s.sol:Deploy -f {chain alias}
-    function run() external {
+    /// forge script script/Deploy.s.sol:Deploy --sig "deployL2()" --chain-id {chain id}
+    function deployL2() external {
         _loadConfig("./addrs/external.toml", false);
 
-        address unitToken = config.get("generic_unit_token").toAddress();
-        require(unitToken != address(0), "unit token not set");
-        console.log("Unit token address:", unitToken);
+        bool isL1 = config.get("is_l1").toBool();
+        require(!isL1, "Not L2 deployment");
+
+        bool deployLayerzeroAdapter = config.get("deploy_layerzero_adapter").toBool();
+        console.log("Deploy LayerZeroAdapter:", deployLayerzeroAdapter);
+
+        bool deployLineaAdapter = config.get("deploy_linea_adapter").toBool();
+        console.log("Deploy LineaBridgeAdapter:", deployLineaAdapter);
 
         address admin = config.get("bridging_admin").toAddress();
         require(admin != address(0), "admin not set");
@@ -32,56 +38,44 @@ contract Deploy is Script, Config {
         console.log("Coordinator roles admin address:", coordinatorRolesAdmin);
 
         address lzEndpoint = config.get("layerzero_endpoint").toAddress();
-        // Note: LayerZero adapter deployment is optional
+        require(!deployLayerzeroAdapter || lzEndpoint != address(0), "layerzero endpoint not set");
         console.log("LayerZero Endpoint address:", lzEndpoint);
-
-        bool isL1 = config.get("is_l1").toBool();
-        console.log("Is L1:", isL1);
 
         address coordinatorAdapterManager = config.get("bridge_coordinator_adapter_manager").toAddress();
         require(coordinatorAdapterManager != address(0), "adapter manager not set");
         console.log("Coordinator adapter manager address:", coordinatorAdapterManager);
-
-        address coordinatorPredepositManager;
-        if (isL1) {
-            coordinatorPredepositManager = config.get("bridge_coordinator_predeposit_manager").toAddress();
-            require(coordinatorPredepositManager != address(0), "predeposit manager not set");
-            console.log("Coordinator predeposit manager address:", coordinatorPredepositManager);
-        }
 
         _loadConfig("./addrs/deployments.toml", true);
 
         vm.createSelectFork(config.getRpcUrl());
         vm.startBroadcast();
 
-        // Deploy BridgeCoordinator with caller as initial admin
-        address coordinatorImpl = isL1 ? address(new BridgeCoordinatorL1()) : address(new BridgeCoordinatorL2());
-        address coordinator = address(
-            new TransparentUpgradeableProxy(
-                coordinatorImpl, admin, abi.encodeCall(BridgeCoordinator.initialize, (unitToken, msg.sender))
-            )
-        );
+        // Deploy BridgeCoordinator
+        address coordinatorImpl = address(new BridgeCoordinatorL2());
+        address coordinator = address(new TransparentUpgradeableProxy(coordinatorImpl, admin, ""));
 
-        // Deploy LineaBridgeAdapter
-        address lineaAdapter = address(new LineaBridgeAdapter(BridgeCoordinator(coordinator), admin));
+        // Deploy GenericUnitL2 for the coordinator
+        address unitToken = address(new GenericUnitL2(coordinator, "Generic USD Unit", "G_USD_U"));
+
+        // Initialize BridgeCoordinator with caller as initial admin
+        BridgeCoordinator(coordinator).initialize(unitToken, msg.sender);
 
         // Deploy LayerZeroAdapter
         address layerZeroAdapter;
-        if (lzEndpoint != address(0)) {
+        if (deployLayerzeroAdapter) {
             layerZeroAdapter = address(new LayerZeroAdapter(BridgeCoordinator(coordinator), admin, lzEndpoint));
+        }
+
+        // Deploy LineaBridgeAdapter
+        address lineaAdapter;
+        if (deployLineaAdapter) {
+            lineaAdapter = address(new LineaBridgeAdapter(BridgeCoordinator(coordinator), admin));
         }
 
         // Grant ADAPTER_MANAGER_ROLE
         BridgeCoordinator(coordinator)
             .grantRole(BridgeCoordinator(coordinator).ADAPTER_MANAGER_ROLE(), coordinatorAdapterManager);
         console.log("BridgeCoordinator ADAPTER_MANAGER_ROLE granted to:", coordinatorAdapterManager);
-
-        // Grant PREDEPOSIT_MANAGER_ROLE
-        if (isL1 && coordinatorPredepositManager != address(0)) {
-            BridgeCoordinatorL1(coordinator)
-                .grantRole(BridgeCoordinatorL1(coordinator).PREDEPOSIT_MANAGER_ROLE(), coordinatorPredepositManager);
-            console.log("BridgeCoordinatorL1 PREDEPOSIT_MANAGER_ROLE granted to:", coordinatorPredepositManager);
-        }
 
         // Transfer DEFAULT_ADMIN_ROLE
         if (msg.sender != coordinatorRolesAdmin) {
@@ -94,24 +88,30 @@ contract Deploy is Script, Config {
         vm.stopBroadcast();
 
         // Save addresses to deployments.toml
-        config.set(isL1 ? "bridge_coordinator_l1" : "bridge_coordinator_l2", coordinator);
-        config.set("linea_adapter", lineaAdapter);
-        if (lzEndpoint != address(0)) config.set("layerzero_adapter", layerZeroAdapter);
+        config.set("generic_unit_l2", unitToken);
+        config.set("bridge_coordinator_l2", coordinator);
+        if (layerZeroAdapter != address(0)) config.set("layerzero_adapter", layerZeroAdapter);
+        if (lineaAdapter != address(0)) config.set("linea_adapter", lineaAdapter);
 
         // Log deployed addresses
         console.log("----------");
         console.log("New deployments:\n");
 
-        console.log("LineaBridgeAdapter deployed at:", lineaAdapter);
-        console.log(isL1 ? "BridgeCoordinatorL1 deployed at" : "BridgeCoordinatorL2 deployed at", coordinator);
-        if (lzEndpoint != address(0)) {
+        console.log("GenericUnitL2 deployed at", unitToken);
+        console.log("BridgeCoordinatorL2 deployed at", coordinator);
+        if (layerZeroAdapter != address(0)) {
             console.log("LayerZeroAdapter deployed at:", layerZeroAdapter);
         } else {
             console.log("LayerZeroAdapter deployment skipped (endpoint address not set)");
         }
+        if (lineaAdapter != address(0)) {
+            console.log("LineaBridgeAdapter deployed at:", lineaAdapter);
+        } else {
+            console.log("LineaBridgeAdapter deployment skipped");
+        }
     }
 
-    /// forge script script/Deploy.s.sol:Deploy --sig "deployLayerZeroAdapter()" -f {chain alias}
+    /// forge script script/Deploy.s.sol:Deploy --sig "deployLayerZeroAdapter()" --chain-id {chain id}
     function deployLayerZeroAdapter() external {
         _loadConfig("./addrs/external.toml", false);
 
