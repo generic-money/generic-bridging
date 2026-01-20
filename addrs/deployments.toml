@@ -1,5 +1,9 @@
 [mainnet.address]
-# will be filled in by the deployment script
+bridge_coordinator_l1 = "0x0503F2C5A1a4b72450c6Cfa790F2097CF5cB6a01"
+linea_adapter = "0xe39D672416421Ce1536997FF892C8B339EB9ab93"
+layerzero_adapter = "0x05a166797e784d49Ba880b289647eCcB29B0144e"
 
 [sepolia.address]
-# will be filled in by the deployment script
+bridge_coordinator_l1 = "0x34309838809ae6A5DA392b46A63e17de63068d6D"
+linea_adapter = "0xe938F4Ab7ad04B1F429Aa3B2d403F0D6E27fdc6d"
+layerzero_adapter = "0xcA643353aDC446235a2e921b034894cECFDc96cC"
