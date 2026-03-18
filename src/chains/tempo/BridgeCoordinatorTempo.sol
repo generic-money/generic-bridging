@@ -25,6 +25,10 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
      * @notice Thrown when the coordinator failed to claim the user tokens before burning
      */
     error TransferToCoordinatorFailed();
+    /**
+     * @notice Thrown when the amount of unit tokens claimed does not match the expected amount
+     */
+    error IncorrectEscrowBalance();
 
     /**
      * @notice Burns units when bridging out from L2
@@ -39,16 +43,24 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
         uint256 amount
     ) internal override {
         if (whitelabel == address(0)) {
+            uint256 escrowBalance = ITIP20(genericUnit).balanceOf(
+                address(this)
+            );
             require(
                 ITIP20(genericUnit).transferFrom(owner, address(this), amount),
                 TransferToCoordinatorFailed()
+            );
+
+            // Tempo TIP-20 transfers can have non-1:1 semantics, so verify exact delivery before burning.
+            require(
+                ITIP20(genericUnit).balanceOf(address(this)) ==
+                    escrowBalance + amount,
+                IncorrectEscrowBalance()
             );
             ITIP20(genericUnit).burn(amount);
         } else {
             revert WhitelabelsNotSupported();
         }
-
-        // Note: Burn would fail if unwrapping did not transfer the correct amount
     }
 
     /**
