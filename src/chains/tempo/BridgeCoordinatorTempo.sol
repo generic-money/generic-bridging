@@ -4,8 +4,6 @@ pragma solidity 0.8.29;
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { BridgeCoordinator } from "../../coordinator/BridgeCoordinator.sol";
-import { IERC20Mintable } from "../../interfaces/IERC20Mintable.sol";
-import { IWhitelabeledUnit } from "../../interfaces/IWhitelabeledUnit.sol";
 import { ITIP20 } from "./interfaces/ITIP20.sol";
 
 /**
