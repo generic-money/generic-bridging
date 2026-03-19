@@ -1,8 +1,6 @@
 // PDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import { BridgeCoordinator } from "../../coordinator/BridgeCoordinator.sol";
 import { ITIP20 } from "./interfaces/ITIP20.sol";
 
@@ -12,8 +10,6 @@ import { ITIP20 } from "./interfaces/ITIP20.sol";
  * @dev Burns and mints the local TIP-20 unit token instead of escrowing ERC-20 balances.
  */
 contract BridgeCoordinatorTempo is BridgeCoordinator {
-    using SafeERC20 for IERC20;
-
     /**
      * @notice Tempo does not support whitelabel units
      */
