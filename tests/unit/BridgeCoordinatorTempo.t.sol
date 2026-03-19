@@ -34,11 +34,11 @@ abstract contract BridgeCoordinatorTempoTest is Test {
 contract BridgeCoordinatorTempo_RestrictUnits_Test is BridgeCoordinatorTempoTest {
     function testFuzz_shouldBurnUnits_whenZeroWhitelabel(address owner, uint256 amount) public {
         vm.assume(owner != address(0));
-        amount = bound(amount, 1, type(uint256).max / 2);
+        amount = bound(amount, 1, type(uint256).max - 1_000_000e6);
 
         bytes[] memory returnData = new bytes[](2);
-        returnData[0] = abi.encode(1000e18);
-        returnData[1] = abi.encode(1000e18 + amount);
+        returnData[0] = abi.encode(1_000_000e6);
+        returnData[1] = abi.encode(1_000_000e6 + amount);
         vm.mockCalls(unit, abi.encodeCall(ITIP20.balanceOf, (address(coordinator))), returnData);
 
         vm.expectCall(unit, abi.encodeCall(ITIP20.transferFrom, (owner, address(coordinator), amount)));
@@ -49,11 +49,11 @@ contract BridgeCoordinatorTempo_RestrictUnits_Test is BridgeCoordinatorTempoTest
 
     function test_shouldRevert_whenTransferCreditsLessThanRequestedAmount() public {
         address owner = makeAddr("owner");
-        uint256 amount = 500;
+        uint256 amount = 500e6;
 
         bytes[] memory returnData = new bytes[](2);
-        returnData[0] = abi.encode(1000e18);
-        returnData[1] = abi.encode(1000e18 + amount - 1);
+        returnData[0] = abi.encode(1_000_000e6);
+        returnData[1] = abi.encode(1_000_000e6 + amount - 1);
         vm.mockCalls(unit, abi.encodeCall(ITIP20.balanceOf, (address(coordinator))), returnData);
         vm.mockCallRevert(
             unit,
@@ -67,11 +67,11 @@ contract BridgeCoordinatorTempo_RestrictUnits_Test is BridgeCoordinatorTempoTest
 
     function test_shouldRevert_whenTransferCreditsMoreThanRequestedAmount() public {
         address owner = makeAddr("owner");
-        uint256 amount = 500;
+        uint256 amount = 500e6;
 
         bytes[] memory returnData = new bytes[](2);
-        returnData[0] = abi.encode(1000e18);
-        returnData[1] = abi.encode(1000e18 + amount + 1);
+        returnData[0] = abi.encode(1_000_000e6);
+        returnData[1] = abi.encode(1_000_000e6 + amount + 1);
         vm.mockCalls(unit, abi.encodeCall(ITIP20.balanceOf, (address(coordinator))), returnData);
         vm.mockCallRevert(
             unit,
@@ -86,5 +86,21 @@ contract BridgeCoordinatorTempo_RestrictUnits_Test is BridgeCoordinatorTempoTest
     function test_shouldRevert_whenWhitelabelIsProvided() public {
         vm.expectRevert(BridgeCoordinatorTempo.WhitelabelsNotSupported.selector);
         coordinator.exposed_restrictUnits(whitelabel, makeAddr("owner"), 1);
+    }
+}
+
+contract BridgeCoordinatorTempo_ReleaseUnits_Test is BridgeCoordinatorTempoTest {
+    function testFuzz_shouldMintScaledUnits_whenZeroWhitelabel(address recipient, uint256 amount) public {
+        vm.assume(recipient != address(0));
+        amount = bound(amount, 1, type(uint256).max);
+
+        vm.expectCall(unit, abi.encodeCall(ITIP20.mint, (recipient, amount)));
+
+        coordinator.exposed_releaseUnits(address(0), recipient, amount);
+    }
+
+    function test_shouldRevert_whenWhitelabelIsProvided() public {
+        vm.expectRevert(BridgeCoordinatorTempo.WhitelabelsNotSupported.selector);
+        coordinator.exposed_releaseUnits(whitelabel, makeAddr("recipient"), 1);
     }
 }
