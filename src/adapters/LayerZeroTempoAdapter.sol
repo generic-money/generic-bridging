@@ -6,18 +6,16 @@ import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2St
 import { OAppAlt, Origin, MessagingFee } from "@layerzerolabs/oapp-alt-evm/contracts/oapp/OAppAlt.sol";
 import { OAppOptionsType3 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 
-import { IBridgeCoordinator } from "../interfaces/IBridgeCoordinator.sol";
-import { ITempoBridgeAdapter } from "../interfaces/ITempoBridgeAdapter.sol";
+import { BaseAdapter, IBridgeCoordinator } from "./BaseAdapter.sol";
+import { IBridgeAdapterTokenFee, IBridgeAdapter } from "../interfaces/IBridgeAdapterTokenFee.sol";
 import { BridgeTypes } from "./BridgeTypes.sol";
 
 /**
  * @title LayerZeroTempoAdapter
  * @notice Bridge adapter using LayerZero's OAppAlt for Tempo cross-chain messaging
  * @dev Handles message passing only - does NOT hold or manage tokens
- * @dev This adapter DOES NOT inherit from BaseAdapter because it needs to implement ITempoBridgeAdapter, instead of
- * IBridgeAdapter.
  */
-contract LayerZeroTempoAdapter is ITempoBridgeAdapter, Ownable2Step, OAppAlt, OAppOptionsType3 {
+contract LayerZeroTempoAdapter is IBridgeAdapterTokenFee, BaseAdapter, OAppAlt, OAppOptionsType3 {
     /**
      * @notice Emitted whenever a LayerZero endpoint identifier is configured for a given chain id.
      * @param chainId The canonical chain id managed by the bridge coordinator.
@@ -36,14 +34,6 @@ contract LayerZeroTempoAdapter is ITempoBridgeAdapter, Ownable2Step, OAppAlt, OA
     );
 
     /**
-     * @notice Thrown when an operation receives the zero address where a contract is required.
-     */
-    error InvalidZeroAddress();
-    /**
-     * @notice Thrown when a non-authorised caller attempts to invoke restricted functionality.
-     */
-    error UnauthorizedCaller();
-    /**
      * @notice Thrown when the coordinator-provided remote adapter does not match the LayerZero peer configuration.
      * @param configuredPeer The peer address registered in LayerZero's endpoint for the destination.
      * @param coordinatorAdapter The adapter identifier supplied by the BridgeCoordinator call.
@@ -54,10 +44,6 @@ contract LayerZeroTempoAdapter is ITempoBridgeAdapter, Ownable2Step, OAppAlt, OA
      * @notice Msg type for sending a string, for use in OAppOptionsType3 as an enforced option
      */
     uint16 public constant SEND = 1;
-    /**
-     * @notice The bridge coordinator contract that this adapter is connected to
-     */
-    address public immutable bridgeCoordinator;
 
     /**
      * @notice Maps canonical EVM chain identifiers to the corresponding LayerZero endpoint ids.
@@ -75,13 +61,11 @@ contract LayerZeroTempoAdapter is ITempoBridgeAdapter, Ownable2Step, OAppAlt, OA
         address owner,
         address endpoint
     )
-        Ownable(owner)
+        BaseAdapter(_coordinator, owner)
         OAppAlt(endpoint, owner)
-    {
-        bridgeCoordinator = address(_coordinator);
-    }
+    { }
 
-    /// @inheritdoc ITempoBridgeAdapter
+    /// @inheritdoc IBridgeAdapterTokenFee
     function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,
@@ -136,7 +120,7 @@ contract LayerZeroTempoAdapter is ITempoBridgeAdapter, Ownable2Step, OAppAlt, OA
         emit MessageGuidRecorded(messageId, guid, chainId, origin.srcEid);
     }
 
-    /// @inheritdoc ITempoBridgeAdapter
+    /// @inheritdoc IBridgeAdapter
     function estimateBridgeFee(
         uint256 chainId,
         bytes calldata message,
@@ -156,7 +140,7 @@ contract LayerZeroTempoAdapter is ITempoBridgeAdapter, Ownable2Step, OAppAlt, OA
         return _quote(dstEid, messagePayload, combineOptions(dstEid, SEND, bridgeParams), false).nativeFee;
     }
 
-    /// @inheritdoc ITempoBridgeAdapter
+    /// @inheritdoc IBridgeAdapter
     function bridgeType() public pure returns (uint16) {
         return BridgeTypes.LAYER_ZERO;
     }

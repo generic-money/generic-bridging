@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 import { OApp, Origin, MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import { OAppOptionsType3 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 
 import { BaseAdapter, IBridgeCoordinator } from "./BaseAdapter.sol";
-import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
+import { IBridgeAdapterNativeFee, IBridgeAdapter } from "../interfaces/IBridgeAdapterNativeFee.sol";
 import { BridgeTypes } from "./BridgeTypes.sol";
 
 /**
@@ -16,7 +15,7 @@ import { BridgeTypes } from "./BridgeTypes.sol";
  * @notice Bridge adapter using LayerZero's OApp for cross-chain messaging
  * @dev Handles message passing only - does NOT hold or manage tokens
  */
-contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
+contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOptionsType3 {
     /**
      * @notice Emitted whenever a LayerZero endpoint identifier is configured for a given chain id.
      * @param chainId The canonical chain id managed by the bridge coordinator.
@@ -66,7 +65,7 @@ contract LayerZeroAdapter is BaseAdapter, OApp, OAppOptionsType3 {
         OApp(endpoint, owner)
     { }
 
-    /// @inheritdoc IBridgeAdapter
+    /// @inheritdoc IBridgeAdapterNativeFee
     function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,
