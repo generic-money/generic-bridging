@@ -5,7 +5,9 @@ import { Test } from "forge-std/Test.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import { BridgeCoordinator, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { IBridgeAdapter } from "../../../src/interfaces/IBridgeAdapter.sol";
+import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterNativeFee.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
@@ -48,7 +50,7 @@ abstract contract BridgeCoordinatorTest is Test {
         );
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), "");
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapterNativeFee.bridge.selector), "");
 
         coordinator.workaround_setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);

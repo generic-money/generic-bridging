@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import { AdapterManager, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { AdapterManager, IBridgeAdapter } from "../../../src/coordinator/AdapterManager.sol";
 
 import { BridgeCoordinatorTest } from "./BridgeCoordinator.t.sol";
 

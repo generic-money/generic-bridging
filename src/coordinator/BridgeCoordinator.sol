@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import { BaseBridgeCoordinator, IBridgeAdapter } from "./BaseBridgeCoordinator.sol";
+import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
+import { IBridgeAdapterNativeFee } from "../interfaces/IBridgeAdapterNativeFee.sol";
 import { AdapterManager } from "./AdapterManager.sol";
 import { EmergencyManager } from "./EmergencyManager.sol";
 import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
@@ -116,7 +117,7 @@ abstract contract BridgeCoordinator is
         override
         returns (bytes32 messageId)
     {
-        IBridgeAdapter adapter = outboundLocalBridgeAdapter(bridgeType);
+        IBridgeAdapterNativeFee adapter = IBridgeAdapterNativeFee(address(outboundLocalBridgeAdapter(bridgeType)));
         bytes32 remoteAdapter = outboundRemoteBridgeAdapter(bridgeType, chainId);
         require(address(adapter) != address(0), NoOutboundLocalBridgeAdapter());
         require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());

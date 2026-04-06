@@ -3,19 +3,19 @@ pragma solidity 0.8.29;
 
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-import { OApp, Origin, MessagingFee } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
+import { OAppAlt, Origin, MessagingFee } from "@layerzerolabs/oapp-alt-evm/contracts/oapp/OAppAlt.sol";
 import { OAppOptionsType3 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 
 import { BaseAdapter, IBridgeCoordinator } from "./BaseAdapter.sol";
-import { IBridgeAdapterNativeFee, IBridgeAdapter } from "../interfaces/IBridgeAdapterNativeFee.sol";
+import { IBridgeAdapterTokenFee, IBridgeAdapter } from "../interfaces/IBridgeAdapterTokenFee.sol";
 import { BridgeTypes } from "./BridgeTypes.sol";
 
 /**
- * @title LayerZeroAdapter
- * @notice Bridge adapter using LayerZero's OApp for cross-chain messaging
+ * @title LayerZeroTempoAdapter
+ * @notice Bridge adapter using LayerZero's OAppAlt for Tempo cross-chain messaging
  * @dev Handles message passing only - does NOT hold or manage tokens
  */
-contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOptionsType3 {
+contract LayerZeroTempoAdapter is IBridgeAdapterTokenFee, BaseAdapter, OAppAlt, OAppOptionsType3 {
     /**
      * @notice Emitted whenever a LayerZero endpoint identifier is configured for a given chain id.
      * @param chainId The canonical chain id managed by the bridge coordinator.
@@ -62,20 +62,20 @@ contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOpt
         address endpoint
     )
         BaseAdapter(_coordinator, owner)
-        OApp(endpoint, owner)
+        OAppAlt(endpoint, owner)
     { }
 
-    /// @inheritdoc IBridgeAdapterNativeFee
+    /// @inheritdoc IBridgeAdapterTokenFee
     function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,
         bytes calldata message,
         address refundAddress,
         bytes calldata bridgeParams,
-        bytes32 messageId
+        bytes32 messageId,
+        uint256 fee
     )
         external
-        payable
     {
         require(msg.sender == bridgeCoordinator, UnauthorizedCaller());
 
@@ -88,7 +88,7 @@ contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOpt
         bytes memory payload = abi.encode(message, messageId);
         bytes memory options = combineOptions(dstEid, SEND, bridgeParams);
 
-        _lzSend(dstEid, payload, options, MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }), refundAddress);
+        _lzSend(dstEid, payload, options, MessagingFee({ nativeFee: fee, lzTokenFee: 0 }), refundAddress);
     }
 
     /**
@@ -181,7 +181,7 @@ contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOpt
     }
 
     /**
-     * @notice Resolves the ownership diamond created by inheriting both Ownable2Step (via BaseAdapter)
+     * @notice Resolves the ownership diamond created by inheriting both Ownable2Step
      * and Ownable (via OAppOptionsType3). The overrides forward control to Ownable2Step so the
      * coordinator keeps its two-step ownership semantics while remaining compatible with OApp.
      */
@@ -190,7 +190,7 @@ contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOpt
     }
 
     /**
-     * @notice Resolves the ownership diamond created by inheriting both Ownable2Step (via BaseAdapter)
+     * @notice Resolves the ownership diamond created by inheriting both Ownable2Step
      * and Ownable (via OAppOptionsType3). The overrides forward control to Ownable2Step so the
      * coordinator keeps its two-step ownership semantics while remaining compatible with OApp.
      */

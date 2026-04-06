@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { BaseAdapter } from "./BaseAdapter.sol";
 import { IBridgeCoordinator } from "../interfaces/IBridgeCoordinator.sol";
-import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
+import { IBridgeAdapterNativeFee, IBridgeAdapter } from "../interfaces/IBridgeAdapterNativeFee.sol";
 import { IMessageService } from "../interfaces/bridges/linea/IMessageService.sol";
 import { ILineaBridgeAdapter } from "../interfaces/bridges/linea/ILineaBridgeAdapter.sol";
 import { Bytes32AddressLib } from "../utils/Bytes32AddressLib.sol";
@@ -14,7 +14,7 @@ import { BridgeTypes } from "./BridgeTypes.sol";
  * @notice Bridge adapter using Linea's Message Service for cross-chain messaging
  * @dev Handles message passing only - does NOT hold or manage tokens
  */
-contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
+contract LineaBridgeAdapter is IBridgeAdapterNativeFee, BaseAdapter, ILineaBridgeAdapter {
     /**
      * @notice Thrown when arbitrary calldata does not match the expected encoding format.
      */
@@ -49,7 +49,7 @@ contract LineaBridgeAdapter is BaseAdapter, ILineaBridgeAdapter {
 
     constructor(IBridgeCoordinator _coordinator, address owner) BaseAdapter(_coordinator, owner) { }
 
-    /// @inheritdoc IBridgeAdapter
+    /// @inheritdoc IBridgeAdapterNativeFee
     function bridge(
         uint256 chainId,
         bytes32 remoteAdapter,

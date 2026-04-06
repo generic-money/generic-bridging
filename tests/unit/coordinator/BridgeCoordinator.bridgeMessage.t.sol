@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.29;
 
-import { BridgeCoordinator, IBridgeAdapter } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.sol";
+import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterNativeFee.sol";
 import { BridgeMessageCoordinator, BridgeMessage } from "../../../src/coordinator/BridgeMessageCoordinator.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
@@ -77,7 +78,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
             localAdapter,
             fee,
             abi.encodeWithSelector(
-                IBridgeAdapter.bridge.selector,
+                IBridgeAdapterNativeFee.bridge.selector,
                 remoteChainId,
                 remoteAdapter,
                 bridgeMessageData,
@@ -261,7 +262,7 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
             localAdapter,
             fee,
             abi.encodeWithSelector(
-                IBridgeAdapter.bridge.selector,
+                IBridgeAdapterNativeFee.bridge.selector,
                 remoteChainId,
                 remoteAdapter,
                 rollbackMessageData,
