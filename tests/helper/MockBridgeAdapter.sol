@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.29;
 
-import { IBridgeAdapter } from "../../src/coordinator/BaseBridgeCoordinator.sol";
+import { IBridgeAdapter } from "../../src/interfaces/IBridgeAdapter.sol";
 
 contract MockBridgeAdapter is IBridgeAdapter {
     uint16 private immutable _bridgeType;

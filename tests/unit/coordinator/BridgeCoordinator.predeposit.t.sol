@@ -13,6 +13,7 @@ import {
 } from "../../../src/coordinator/PredepositCoordinator.sol";
 import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.sol";
 import { IBridgeAdapter } from "../../../src/interfaces/IBridgeAdapter.sol";
+import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterNativeFee.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import { BridgeCoordinatorPredepositHarness } from "../../harness/BridgeCoordinatorPredepositHarness.sol";
@@ -62,7 +63,7 @@ abstract contract BridgeCoordinatorL1_PredepositCoordinator_Test is Test {
         );
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
         vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridge.selector), "");
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapterNativeFee.bridge.selector), "");
 
         vm.mockCall(unit, abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
         vm.mockCall(unit, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
@@ -221,7 +222,7 @@ contract BridgeCoordinatorL1_PredepositCoordinator_BridgePredeposit_Test is
             localAdapter,
             fee,
             abi.encodeWithSelector(
-                IBridgeAdapter.bridge.selector,
+                IBridgeAdapterNativeFee.bridge.selector,
                 remoteChainId,
                 remoteAdapter,
                 expectedBridgeMessageData,

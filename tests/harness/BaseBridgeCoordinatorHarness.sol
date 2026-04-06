@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.29;
 
-import { BridgeCoordinator, IBridgeAdapter } from "../../src/coordinator/BridgeCoordinator.sol";
+import { BridgeCoordinator } from "../../src/coordinator/BridgeCoordinator.sol";
+import { IBridgeAdapter } from "../../src/interfaces/IBridgeAdapter.sol";
 
 abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
     function exposed_restrictUnits(address whitelabel, address owner, uint256 amount) external {
