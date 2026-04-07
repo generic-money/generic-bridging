@@ -68,9 +68,16 @@ abstract contract BaseBridgeCoordinator is
     mapping(bytes32 messageId => bytes32 messageHash) public failedMessageExecutions;
 
     /**
+     * @notice Mapping of whitelabeled unit token addresses to their escrowed virtual unit balances (18 decimals)
+     * @dev Unit tokens are not actually escrowed in the contract. Their virtual balance is tracked here for internal
+     * accounting purposes.
+     */
+    mapping(address whitelabel => uint256 units) public unitBalanceOf;
+
+    /**
      * @notice Reserved storage space to allow for layout changes in the future.
      */
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     /**
      * @notice Checks if a specific bridge type is supported for a destination chain
