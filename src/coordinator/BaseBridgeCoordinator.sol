@@ -31,7 +31,7 @@ abstract contract BaseBridgeCoordinator is
      * @param isAdapter Mapping of adapter addresses
      */
     struct LocalConfig {
-        IBridgeAdapter outbound;
+        address outbound;
         mapping(address => bool) isAdapter;
     }
 
@@ -97,7 +97,7 @@ abstract contract BaseBridgeCoordinator is
      * @param bridgeType The identifier for the bridge protocol
      * @return The local bridge adapter contract used for outbound messages
      */
-    function outboundLocalBridgeAdapter(uint16 bridgeType) public view returns (IBridgeAdapter) {
+    function outboundLocalBridgeAdapter(uint16 bridgeType) public view returns (address) {
         return bridgeTypes[bridgeType].local.outbound;
     }
 

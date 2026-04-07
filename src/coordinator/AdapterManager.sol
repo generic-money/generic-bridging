@@ -128,7 +128,7 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
         if (address(adapter) != address(0)) {
             require(config.isAdapter[address(adapter)], IsNotAdapter());
         }
-        config.outbound = adapter;
+        config.outbound = address(adapter);
         emit LocalOutboundBridgeAdapterUpdated(bridgeType, address(adapter));
     }
 

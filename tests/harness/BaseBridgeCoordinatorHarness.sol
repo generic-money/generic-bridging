@@ -2,7 +2,6 @@
 pragma solidity 0.8.29;
 
 import { BridgeCoordinator } from "../../src/coordinator/BridgeCoordinator.sol";
-import { IBridgeAdapter } from "../../src/interfaces/IBridgeAdapter.sol";
 
 abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
     function exposed_restrictUnits(address whitelabel, address owner, uint256 amount) external {
@@ -22,7 +21,7 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
     }
 
     function workaround_setOutboundLocalBridgeAdapter(uint16 bridgeType, address adapter) external {
-        bridgeTypes[bridgeType].local.outbound = IBridgeAdapter(adapter);
+        bridgeTypes[bridgeType].local.outbound = adapter;
     }
 
     function workaround_setOutboundRemoteBridgeAdapter(
