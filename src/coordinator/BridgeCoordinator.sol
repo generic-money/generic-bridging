@@ -117,9 +117,9 @@ abstract contract BridgeCoordinator is
         override
         returns (bytes32 messageId)
     {
-        IBridgeAdapterNativeFee adapter = IBridgeAdapterNativeFee(address(outboundLocalBridgeAdapter(bridgeType)));
+        address adapter = outboundLocalBridgeAdapter(bridgeType);
         bytes32 remoteAdapter = outboundRemoteBridgeAdapter(bridgeType, chainId);
-        require(address(adapter) != address(0), NoOutboundLocalBridgeAdapter());
+        require(adapter != address(0), NoOutboundLocalBridgeAdapter());
         require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());
 
         messageId = _generateMessageId(bridgeType, chainId);
