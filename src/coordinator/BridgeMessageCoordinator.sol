@@ -76,6 +76,10 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      * @notice Thrown when there is no sender address to rollback to
      */
     error BridgeMessage_NoSenderToRollback();
+    /**
+     * @notice Thrown when there is a mismatch between the provided and actual native bridging fee amount
+     */
+    error BridgeMessage_NativeFeeMismatch();
 
     /**
      * @notice Bridges Generic units to another chain using the specified bridge protocol
@@ -89,6 +93,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      * @param destinationWhitelabel The whitelabeled unit token address on the destination chain (encoded as bytes32)
      * @param amount The amount of units to bridge
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @param fee The fee amount to be paid for the rollback bridge operation (native or token)
      * @return messageId Unique identifier for tracking the cross-chain message
      */
     function bridge(
@@ -99,13 +104,15 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         address sourceWhitelabel,
         bytes32 destinationWhitelabel,
         uint256 amount,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        uint256 fee
     )
         external
         payable
         nonReentrant
         returns (bytes32 messageId)
     {
+        require(msg.value == (NATIVE_BRIDGING_FEE() ? fee : 0), BridgeMessage_NativeFeeMismatch());
         require(onBehalf != address(0), BridgeMessage_InvalidOnBehalf());
         require(remoteRecipient != bytes32(0), BridgeMessage_InvalidRemoteRecipient());
         require(amount > 0, BridgeMessage_InvalidAmount());
@@ -117,7 +124,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
             destinationWhitelabel: destinationWhitelabel,
             amount: amount
         });
-        messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams);
+        messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams, fee);
 
         _restrictUnits(sourceWhitelabel, msg.sender, amount);
 
@@ -132,6 +139,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
      * @param originalMessageData The original bridge message data that failed execution
      * @param originalMessageId Unique identifier of the original cross-chain message
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @param fee The fee amount to be paid for the rollback bridge operation (native or token)
      * @return rollbackMessageId Unique identifier for tracking the rollback cross-chain message
      */
     function rollback(
@@ -139,13 +147,15 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         uint256 originalChainId,
         bytes calldata originalMessageData,
         bytes32 originalMessageId,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        uint256 fee
     )
         external
         payable
         nonReentrant
         returns (bytes32 rollbackMessageId)
     {
+        require(msg.value == (NATIVE_BRIDGING_FEE() ? fee : 0), BridgeMessage_NativeFeeMismatch());
         bytes32 failedMessageExecution = failedMessageExecutions[originalMessageId];
         require(failedMessageExecution != bytes32(0), BridgeMessage_NoFailedMessageExecution());
         require(
@@ -167,7 +177,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
             amount: bridgeMessage.amount
         });
         rollbackMessageId =
-            _dispatchMessage(bridgeType, originalChainId, encodeBridgeMessage(rollbackMessage), bridgeParams);
+            _dispatchMessage(bridgeType, originalChainId, encodeBridgeMessage(rollbackMessage), bridgeParams, fee);
 
         emit BridgedOut(
             msg.sender,
