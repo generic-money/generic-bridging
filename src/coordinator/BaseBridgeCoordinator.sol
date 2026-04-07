@@ -80,6 +80,11 @@ abstract contract BaseBridgeCoordinator is
     uint256[49] private __gap;
 
     /**
+     * @notice Indicates whether the bridge infrastructure for this coordinator expects native fees or token fees
+     */
+    function NATIVE_BRIDGING_FEE() public pure virtual returns (bool);
+
+    /**
      * @notice Checks if a specific bridge type is supported for a destination chain
      * @dev Returns true only if both local and remote adapters are configured
      * @param bridgeType The identifier for the bridge protocol
@@ -170,11 +175,6 @@ abstract contract BaseBridgeCoordinator is
         // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encode(chainId, messageData));
     }
-
-    /**
-     * @notice Indicates whether the bridge infrastructure for this coordinator expects native fees or token fees
-     */
-    function NATIVE_BRIDGING_FEE() public pure virtual returns (bool);
 
     /**
      * @notice Dispatches a cross-chain message via the specified bridge adapter
