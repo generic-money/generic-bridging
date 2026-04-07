@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.29;
+
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import { BridgeCoordinator, BaseBridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
+import { ITIP20Mintable } from "./interfaces/ITIP20Mintable.sol";
+
+/**
+ * @title BridgeCoordinatorTempo
+ * @notice Tempo-specific implementation of bridge coordinator that mints TIP-20 tokens
+ * @dev Extends BridgeCoordinator with proper token lifecycle management for Tempo deployments.
+ * Tracks virtual units when bridging in and out, maintaining total supply consistency.
+ */
+contract BridgeCoordinatorTempo is BridgeCoordinator {
+    using SafeERC20 for IERC20;
+
+    /**
+     * @notice Factor to convert between 18 decimals used for units and 6 decimals used for TIP-20 tokens
+     */
+    uint256 public constant DECIMALS_DELTA_FACTOR = 1e12;
+
+    /// @inheritdoc BaseBridgeCoordinator
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
+        return false;
+    }
+
+    /**
+     * @notice Burns units when bridging out from Tempo
+     * @dev Overrides base implementation to burn units
+     * @param whitelabel The whitelabeled unit token address
+     * @param owner The address that owns the units to be burned
+     * @param amount The amount of units to burn
+     */
+    function _restrictUnits(address whitelabel, address owner, uint256 amount) internal override {
+        require(whitelabel != address(0), "Tempo does not support native units");
+        require(unitBalanceOf[whitelabel] >= amount, "Insufficient units to bridge out");
+        unitBalanceOf[whitelabel] -= amount;
+
+        uint256 tip20Amount = amount / DECIMALS_DELTA_FACTOR; // Downscale from units 18 to TIP-20 fixed 6 decimals
+        require(tip20Amount > 0, "Amount too small to bridge with TIP-20 decimals");
+        IERC20(whitelabel).safeTransferFrom(owner, address(this), tip20Amount);
+        ITIP20Mintable(whitelabel).burn(tip20Amount);
+    }
+
+    /**
+     * @notice Mints units when bridging in to Tempo
+     * @dev Overrides base implementation to mint new units
+     * @param whitelabel The whitelabeled unit token address
+     * @param receiver The address that should receive the newly minted units
+     * @param amount The amount of units to mint
+     */
+    function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal override {
+        require(whitelabel != address(0), "Tempo does not support native units");
+        unitBalanceOf[whitelabel] += amount;
+
+        uint256 tip20Amount = amount / DECIMALS_DELTA_FACTOR; // Downscale from units 18 to TIP-20 fixed 6 decimals
+        require(tip20Amount > 0, "Amount too small to bridge with TIP-20 decimals");
+        ITIP20Mintable(whitelabel).mint(receiver, tip20Amount);
+    }
+}
