@@ -2,11 +2,12 @@
 pragma solidity 0.8.29;
 
 import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
-import { IBridgeAdapterNativeFee } from "../interfaces/IBridgeAdapterNativeFee.sol";
 import { AdapterManager } from "./AdapterManager.sol";
 import { EmergencyManager } from "./EmergencyManager.sol";
 import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
 import { Message, MessageType } from "./Message.sol";
+import { IBridgeAdapterNativeFee } from "../interfaces/IBridgeAdapterNativeFee.sol";
+import { IBridgeAdapterTokenFee } from "../interfaces/IBridgeAdapterTokenFee.sol";
 
 /**
  * @title BridgeCoordinator
@@ -105,13 +106,15 @@ abstract contract BridgeCoordinator is
      * @param chainId The destination chain ID
      * @param messageData The encoded bridge message data to be sent
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @param fee The fee amount to be paid for the bridge operation (native or token)
      * @return messageId Unique identifier for tracking the cross-chain message
      */
     function _dispatchMessage(
         uint16 bridgeType,
         uint256 chainId,
         bytes memory messageData,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        uint256 fee
     )
         internal
         override
@@ -123,7 +126,14 @@ abstract contract BridgeCoordinator is
         require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());
 
         messageId = _generateMessageId(bridgeType, chainId);
-        adapter.bridge{ value: msg.value }(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId);
+        if (NATIVE_BRIDGING_FEE()) {
+            IBridgeAdapterNativeFee(adapter).bridge{ value: fee }(
+                chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId
+            );
+        } else {
+            IBridgeAdapterTokenFee(adapter)
+                .bridge(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId, fee);
+        }
 
         emit MessageOut(bridgeType, chainId, messageId, messageData);
     }

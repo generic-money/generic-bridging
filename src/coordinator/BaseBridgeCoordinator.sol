@@ -172,19 +172,26 @@ abstract contract BaseBridgeCoordinator is
     }
 
     /**
+     * @notice Indicates whether the bridge infrastructure for this coordinator expects native fees or token fees
+     */
+    function NATIVE_BRIDGING_FEE() public pure virtual returns (bool);
+
+    /**
      * @notice Dispatches a cross-chain message via the specified bridge adapter
      * @dev Internal function that routes the message to the appropriate bridge adapter
      * @param bridgeType The identifier for the bridge protocol to use
      * @param chainId The destination chain ID
      * @param messageData The encoded bridge message data to be sent
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @param fee The fee amount to be paid for the bridge operation (native or token)
      * @return messageId Unique identifier for tracking the cross-chain message
      */
     function _dispatchMessage(
         uint16 bridgeType,
         uint256 chainId,
         bytes memory messageData,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        uint256 fee
     )
         internal
         virtual
