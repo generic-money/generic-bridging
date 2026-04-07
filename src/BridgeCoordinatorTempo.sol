@@ -24,6 +24,19 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
      */
     IERC20 public constant LZD_TOKEN = IERC20(0x0cEb237E109eE22374a567c6b09F373C73FA4cBb);
 
+    /**
+     * @notice Thrown when the whitelabel address is missing for Tempo bridging operations
+     */
+    error MissingWhitelabelAddress();
+    /**
+     * @notice Thrown when there are insufficient units to bridge out from Tempo
+     */
+    error InsufficientUnitsToBridgeOut();
+    /**
+     * @notice Thrown when decimals rounding results in zero TIP-20 tokens, preventing bridging operations
+     */
+    error DecimalsRoundingToZero();
+
     /// @inheritdoc BaseBridgeCoordinator
     // forge-lint: disable-next-line(mixed-case-function)
     function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
@@ -44,12 +57,12 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
      * @param amount The amount of units to burn
      */
     function _restrictUnits(address whitelabel, address owner, uint256 amount) internal override {
-        require(whitelabel != address(0), "Tempo does not support native units");
-        require(unitBalanceOf[whitelabel] >= amount, "Insufficient units to bridge out");
+        require(whitelabel != address(0), MissingWhitelabelAddress());
+        require(unitBalanceOf[whitelabel] >= amount, InsufficientUnitsToBridgeOut());
         unitBalanceOf[whitelabel] -= amount;
 
         uint256 tip20Amount = amount / DECIMALS_DELTA_FACTOR; // Downscale from units 18 to TIP-20 fixed 6 decimals
-        require(tip20Amount > 0, "Amount too small to bridge with TIP-20 decimals");
+        require(tip20Amount > 0, DecimalsRoundingToZero());
         IERC20(whitelabel).safeTransferFrom(owner, address(this), tip20Amount);
         ITIP20Mintable(whitelabel).burn(tip20Amount);
     }
@@ -62,11 +75,11 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
      * @param amount The amount of units to mint
      */
     function _releaseUnits(address whitelabel, address receiver, uint256 amount) internal override {
-        require(whitelabel != address(0), "Tempo does not support native units");
+        require(whitelabel != address(0), MissingWhitelabelAddress());
         unitBalanceOf[whitelabel] += amount;
 
         uint256 tip20Amount = amount / DECIMALS_DELTA_FACTOR; // Downscale from units 18 to TIP-20 fixed 6 decimals
-        require(tip20Amount > 0, "Amount too small to bridge with TIP-20 decimals");
+        require(tip20Amount > 0, DecimalsRoundingToZero());
         ITIP20Mintable(whitelabel).mint(receiver, tip20Amount);
     }
 }
