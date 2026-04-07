@@ -45,6 +45,11 @@ contract LayerZeroAdapter is IBridgeAdapterNativeFee, BaseAdapter, OApp, OAppOpt
      */
     uint16 public constant SEND = 1;
 
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure returns (bool) {
+        return true;
+    }
+
     /**
      * @notice Maps canonical EVM chain identifiers to the corresponding LayerZero endpoint ids.
      * @dev Used during outbound dispatch to resolve the destination endpoint for a given chain.

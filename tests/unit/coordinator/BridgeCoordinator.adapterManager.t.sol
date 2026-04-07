@@ -84,6 +84,7 @@ contract BridgeCoordinator_AdapterManager_SetIsLocalBridgeAdapter_Test is Bridge
             abi.encode(address(coordinator))
         );
         vm.mockCall(_newAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(_bridgeType));
+        vm.mockCall(_newAdapter, abi.encodeWithSelector(IBridgeAdapter.NATIVE_BRIDGING_FEES.selector), abi.encode(true));
 
         vm.expectEmit();
         emit AdapterManager.LocalBridgeAdapterUpdated(_bridgeType, _newAdapter, true);

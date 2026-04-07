@@ -59,6 +59,10 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
      * @notice Thrown when the new outbound adapter is not in the adapter list
      */
     error IsNotAdapter();
+    /**
+     * @notice Thrown when the adapters bridging fees type does not match coordinators
+     */
+    error BridgingFeesTypeMismatch();
 
     /**
      * @notice Sets a local bridge adapter for a specific bridge type
@@ -80,6 +84,7 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
         if (isAdapter) {
             require(adapter.bridgeCoordinator() == address(this), CoordinatorMismatch());
             require(adapter.bridgeType() == bridgeType, BridgeTypeMismatch());
+            require(adapter.NATIVE_BRIDGING_FEES() == NATIVE_BRIDGING_FEES(), BridgingFeesTypeMismatch());
         } else {
             require(address(config.outbound) != address(adapter), IsOutboundAdapter());
         }

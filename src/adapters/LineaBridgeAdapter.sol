@@ -38,6 +38,11 @@ contract LineaBridgeAdapter is IBridgeAdapterNativeFee, BaseAdapter, ILineaBridg
         uint256 indexed chainId, address indexed previousService, address indexed newService
     );
 
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure returns (bool) {
+        return true;
+    }
+
     /**
      * @notice Reverse lookup for authorised message services back to their origin chain id.
      */

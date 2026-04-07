@@ -7,6 +7,11 @@ contract MockBridgeAdapter is IBridgeAdapter {
     uint16 private immutable _bridgeType;
     address private immutable _coordinator;
 
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure returns (bool) {
+        return true;
+    }
+
     struct BridgeCallParams {
         uint256 chainId;
         bytes32 remoteAdapter;
