@@ -131,7 +131,7 @@ abstract contract BridgeCoordinator is
                 chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId
             );
         } else {
-            // todo: pull fee token
+            _pullFeeTokenFor(msg.sender, fee, adapter);
             IBridgeAdapterTokenFee(adapter)
                 .bridge(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId, fee);
         }
@@ -202,4 +202,13 @@ abstract contract BridgeCoordinator is
         // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encodePacked(block.chainid, dstChainId, bridgeType, block.timestamp, nonce));
     }
+
+    /**
+     * @notice Pulls the fee token from the sender and approves the adapter
+     * @dev This function should be overridden by child contracts to implement token-specific logic
+     * @param from The address from which to pull the fee token
+     * @param amount The amount of fee token to pull
+     * @param adapter The address of the adapter to approve the fee token for
+     */
+    function _pullFeeTokenFor(address from, uint256 amount, address adapter) internal virtual { }
 }
