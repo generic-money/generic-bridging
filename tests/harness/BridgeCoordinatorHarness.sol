@@ -4,6 +4,10 @@ pragma solidity 0.8.29;
 import { BaseBridgeCoordinatorHarness } from "./BaseBridgeCoordinatorHarness.sol";
 
 contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
+        return true;
+    }
+
     struct LastRestrictCall {
         address whitelabel;
         address owner;

@@ -7,7 +7,6 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import { IBridgeCoordinator } from "../interfaces/IBridgeCoordinator.sol";
-import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
 import { Bytes32AddressLib } from "../utils/Bytes32AddressLib.sol";
 
 abstract contract BaseBridgeCoordinator is
@@ -82,7 +81,8 @@ abstract contract BaseBridgeCoordinator is
     /**
      * @notice Indicates whether the bridge infrastructure for this coordinator expects native fees or token fees
      */
-    function NATIVE_BRIDGING_FEE() public pure virtual returns (bool);
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure virtual returns (bool);
 
     /**
      * @notice Checks if a specific bridge type is supported for a destination chain

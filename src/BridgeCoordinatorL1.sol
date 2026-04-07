@@ -23,7 +23,8 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
     error IncorrectEscrowBalance();
 
     /// @inheritdoc BaseBridgeCoordinator
-    function NATIVE_BRIDGING_FEE() public pure override returns (bool) {
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
         return true;
     }
 

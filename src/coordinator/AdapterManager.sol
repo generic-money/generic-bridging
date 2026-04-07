@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import { BaseBridgeCoordinator, IBridgeAdapter } from "./BaseBridgeCoordinator.sol";
+import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
+import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
 
 abstract contract AdapterManager is BaseBridgeCoordinator {
     /**

@@ -112,7 +112,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         nonReentrant
         returns (bytes32 messageId)
     {
-        require(msg.value == (NATIVE_BRIDGING_FEE() ? fee : 0), BridgeMessage_NativeFeeMismatch());
+        require(msg.value == (NATIVE_BRIDGING_FEES() ? fee : 0), BridgeMessage_NativeFeeMismatch());
         require(onBehalf != address(0), BridgeMessage_InvalidOnBehalf());
         require(remoteRecipient != bytes32(0), BridgeMessage_InvalidRemoteRecipient());
         require(amount > 0, BridgeMessage_InvalidAmount());
@@ -155,7 +155,7 @@ abstract contract BridgeMessageCoordinator is BaseBridgeCoordinator {
         nonReentrant
         returns (bytes32 rollbackMessageId)
     {
-        require(msg.value == (NATIVE_BRIDGING_FEE() ? fee : 0), BridgeMessage_NativeFeeMismatch());
+        require(msg.value == (NATIVE_BRIDGING_FEES() ? fee : 0), BridgeMessage_NativeFeeMismatch());
         bytes32 failedMessageExecution = failedMessageExecutions[originalMessageId];
         require(failedMessageExecution != bytes32(0), BridgeMessage_NoFailedMessageExecution());
         require(

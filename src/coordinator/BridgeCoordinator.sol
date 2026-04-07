@@ -126,11 +126,12 @@ abstract contract BridgeCoordinator is
         require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());
 
         messageId = _generateMessageId(bridgeType, chainId);
-        if (NATIVE_BRIDGING_FEE()) {
+        if (NATIVE_BRIDGING_FEES()) {
             IBridgeAdapterNativeFee(adapter).bridge{ value: fee }(
                 chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId
             );
         } else {
+            // todo: pull fee token
             IBridgeAdapterTokenFee(adapter)
                 .bridge(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId, fee);
         }

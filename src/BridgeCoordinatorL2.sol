@@ -17,7 +17,8 @@ contract BridgeCoordinatorL2 is BridgeCoordinator {
     using SafeERC20 for IERC20;
 
     /// @inheritdoc BaseBridgeCoordinator
-    function NATIVE_BRIDGING_FEE() public pure override returns (bool) {
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
         return true;
     }
 

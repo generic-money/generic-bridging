@@ -4,7 +4,6 @@ pragma solidity 0.8.29;
 import { Vm } from "forge-std/Vm.sol";
 
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
-import { Origin } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import { ExecutorOptions } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/libs/ExecutorOptions.sol";
 import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
 import {
@@ -17,7 +16,6 @@ import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/I
 
 import { LayerZeroAdapter } from "../../../src/adapters/LayerZeroAdapter.sol";
 import { BaseAdapter } from "../../../src/adapters/BaseAdapter.sol";
-import { IBridgeCoordinator } from "../../../src/interfaces/IBridgeCoordinator.sol";
 import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Message.sol";
 
 import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
@@ -346,7 +344,15 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.startPrank(user);
         vm.recordLogs();
         messageId = coordinator.bridge{ value: nativeFee }(
-            BRIDGE_TYPE, CHAIN_ID_L2, user, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeOptions
+            BRIDGE_TYPE,
+            CHAIN_ID_L2,
+            user,
+            remoteRecipient,
+            srcWhitelabel,
+            destWhitelabel,
+            amount,
+            bridgeOptions,
+            nativeFee
         );
         vm.stopPrank();
 
