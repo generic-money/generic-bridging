@@ -66,7 +66,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         vm.expectRevert(BridgeCoordinator.NoOutboundLocalBridgeAdapter.selector);
         vm.prank(user);
         coordinator.bridge{ value: 1 ether }(
-            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
+            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data", 1 ether
         );
 
         // Setup local adapter
@@ -78,7 +78,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         vm.expectRevert(BridgeCoordinator.NoOutboundRemoteBridgeAdapter.selector);
         vm.prank(user);
         coordinator.bridge{ value: 1 ether }(
-            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
+            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data", 1 ether
         );
 
         // Setup remote adapter
@@ -89,7 +89,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         // Bridge successfully
         vm.prank(user);
         bytes32 msgId = coordinator.bridge{ value: 1 ether }(
-            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data"
+            bridgeType, chainId, user, remoteUser, address(gusd), destWhitelabel, 100e18, "bridge data", 1 ether
         );
 
         assertEq(gusd.balanceOf(address(coordinator)), 0);
@@ -186,7 +186,9 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         bytes memory invalidFailedMessageData = coordinator.encodeBridgeMessage(message);
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_InvalidFailedMessageData.selector);
         vm.prank(relayer);
-        coordinator.rollback{ value: 1 ether }(bridgeType, chainId, invalidFailedMessageData, messageId, "bridge data");
+        coordinator.rollback{ value: 1 ether }(
+            bridgeType, chainId, invalidFailedMessageData, messageId, "bridge data", 1 ether
+        );
 
         // Setup different bridge type
         uint16 bridgeType2 = bridgeType + 1;
@@ -200,7 +202,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
         // Rollback successfully via different bridge type
         vm.prank(relayer);
         bytes32 rollbackMsgId = coordinator.rollback{ value: 1 ether }(
-            bridgeType2, chainId, messageData, messageId, "rollback bridge data"
+            bridgeType2, chainId, messageData, messageId, "rollback bridge data", 1 ether
         );
 
         assertEq(coordinator.failedMessageExecutions(messageId), bytes32(0), "failed message execution not deleted");
