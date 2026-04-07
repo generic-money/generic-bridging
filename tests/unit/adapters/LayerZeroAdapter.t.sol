@@ -22,32 +22,10 @@ import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Me
 
 import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
-contract LayerZeroAdapterHarness is LayerZeroAdapter {
-    constructor(
-        IBridgeCoordinator coordinator,
-        address owner,
-        address endpoint
-    )
-        LayerZeroAdapter(coordinator, owner, endpoint)
-    { }
-
-    function exposedLzReceive(
-        Origin calldata origin,
-        bytes32 guid,
-        bytes calldata payload,
-        address executor,
-        bytes calldata extraData
-    )
-        external
-    {
-        _lzReceive(origin, guid, payload, executor, extraData);
-    }
-}
-
 contract LayerZeroAdapterTest is TestHelperOz5 {
     using PacketV1Codec for bytes;
-    LayerZeroAdapterHarness internal l1Adapter;
-    LayerZeroAdapterHarness internal l2Adapter;
+    LayerZeroAdapter internal l1Adapter;
+    LayerZeroAdapter internal l2Adapter;
     BridgeCoordinatorHarness internal coordinator;
 
     address internal owner = makeAddr("owner");
@@ -75,8 +53,8 @@ contract LayerZeroAdapterTest is TestHelperOz5 {
         vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
         coordinator.initialize(unitToken, owner);
 
-        l1Adapter = new LayerZeroAdapterHarness(coordinator, owner, endpoints[EID_L1]);
-        l2Adapter = new LayerZeroAdapterHarness(coordinator, owner, endpoints[EID_L2]);
+        l1Adapter = new LayerZeroAdapter(coordinator, owner, endpoints[EID_L1]);
+        l2Adapter = new LayerZeroAdapter(coordinator, owner, endpoints[EID_L2]);
 
         remoteAdapterId = bytes32(uint256(uint160(address(l2Adapter))));
 

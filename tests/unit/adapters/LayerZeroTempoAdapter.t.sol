@@ -23,32 +23,10 @@ import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Me
 import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 import { MockERC20 } from "../../helper/MockERC20.sol";
 
-contract LayerZeroTempoAdapterHarness is LayerZeroTempoAdapter {
-    constructor(
-        IBridgeCoordinator coordinator,
-        address owner,
-        address endpoint
-    )
-        LayerZeroTempoAdapter(coordinator, owner, endpoint)
-    { }
-
-    function exposedLzReceive(
-        Origin calldata origin,
-        bytes32 guid,
-        bytes calldata payload,
-        address executor,
-        bytes calldata extraData
-    )
-        external
-    {
-        _lzReceive(origin, guid, payload, executor, extraData);
-    }
-}
-
 contract LayerZeroTempoAdapterTest is TestHelperOz5 {
     using PacketV1Codec for bytes;
-    LayerZeroTempoAdapterHarness internal l1Adapter;
-    LayerZeroTempoAdapterHarness internal l2Adapter;
+    LayerZeroTempoAdapter internal l1Adapter;
+    LayerZeroTempoAdapter internal l2Adapter;
     BridgeCoordinatorHarness internal coordinator;
     MockERC20 internal feeToken;
 
@@ -83,8 +61,8 @@ contract LayerZeroTempoAdapterTest is TestHelperOz5 {
         vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
         coordinator.initialize(unitToken, owner);
 
-        l1Adapter = new LayerZeroTempoAdapterHarness(coordinator, owner, endpoints[EID_L1]);
-        l2Adapter = new LayerZeroTempoAdapterHarness(coordinator, owner, endpoints[EID_L2]);
+        l1Adapter = new LayerZeroTempoAdapter(coordinator, owner, endpoints[EID_L1]);
+        l2Adapter = new LayerZeroTempoAdapter(coordinator, owner, endpoints[EID_L2]);
 
         vm.startPrank(address(coordinator));
         feeToken.approve(address(l1Adapter), type(uint256).max);
