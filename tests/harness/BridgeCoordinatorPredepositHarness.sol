@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { PredepositCoordinator } from "../../src/coordinator/PredepositCoordinator.sol";
 
-import { BridgeCoordinatorHarness } from "./BridgeCoordinatorHarness.sol";
+import { BridgeCoordinatorNativeFeesHarness as BridgeCoordinatorHarness } from "./BridgeCoordinatorHarness.sol";
 
 contract BridgeCoordinatorPredepositHarness is BridgeCoordinatorHarness, PredepositCoordinator {
     function _storage() private pure returns (PredepositCoordinatorStorage storage $) {

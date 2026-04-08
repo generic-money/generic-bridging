@@ -3,11 +3,7 @@ pragma solidity 0.8.29;
 
 import { BaseBridgeCoordinatorHarness } from "./BaseBridgeCoordinatorHarness.sol";
 
-contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
-    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
-        return true;
-    }
-
+abstract contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
     struct LastRestrictCall {
         address whitelabel;
         address owner;
@@ -32,5 +28,17 @@ contract BridgeCoordinatorHarness is BaseBridgeCoordinatorHarness {
 
     function workaround_nextMessageId(uint16 bridgeType, uint256 dstChainId) external view returns (bytes32) {
         return keccak256(abi.encodePacked(block.chainid, dstChainId, bridgeType, block.timestamp, nonce + 1));
+    }
+}
+
+contract BridgeCoordinatorNativeFeesHarness is BridgeCoordinatorHarness {
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
+        return true;
+    }
+}
+
+contract BridgeCoordinatorTokenFeesHarness is BridgeCoordinatorHarness {
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
+        return false;
     }
 }

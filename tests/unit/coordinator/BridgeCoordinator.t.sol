@@ -10,7 +10,9 @@ import { IBridgeAdapter } from "../../../src/interfaces/IBridgeAdapter.sol";
 import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterNativeFee.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
-import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
+import {
+    BridgeCoordinatorNativeFeesHarness as BridgeCoordinatorHarness
+} from "../../harness/BridgeCoordinatorHarness.sol";
 
 using Bytes32AddressLib for address;
 using Bytes32AddressLib for bytes32;

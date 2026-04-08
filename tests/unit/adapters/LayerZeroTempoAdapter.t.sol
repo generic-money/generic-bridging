@@ -18,7 +18,9 @@ import { LayerZeroTempoAdapter } from "../../../src/adapters/LayerZeroTempoAdapt
 import { BaseAdapter } from "../../../src/adapters/BaseAdapter.sol";
 import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Message.sol";
 
-import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
+import {
+    BridgeCoordinatorTokenFeesHarness as BridgeCoordinatorHarness
+} from "../../harness/BridgeCoordinatorHarness.sol";
 import { MockERC20 } from "../../helper/MockERC20.sol";
 
 contract LayerZeroTempoAdapterTest is TestHelperOz5 {

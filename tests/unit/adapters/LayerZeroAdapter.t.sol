@@ -18,7 +18,9 @@ import { LayerZeroAdapter } from "../../../src/adapters/LayerZeroAdapter.sol";
 import { BaseAdapter } from "../../../src/adapters/BaseAdapter.sol";
 import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Message.sol";
 
-import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
+import {
+    BridgeCoordinatorNativeFeesHarness as BridgeCoordinatorHarness
+} from "../../harness/BridgeCoordinatorHarness.sol";
 
 contract LayerZeroAdapterTest is TestHelperOz5 {
     using PacketV1Codec for bytes;
