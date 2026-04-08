@@ -66,6 +66,14 @@ contract BridgeCoordinator_AdapterManager_SetIsLocalBridgeAdapter_Test is Bridge
         coordinator.setIsLocalBridgeAdapter(bridgeType, IBridgeAdapter(newAdapter), true);
     }
 
+    function test_shouldRevert_whenBridgingFeesTypeMispatch_whenAdding() public {
+        vm.mockCall(newAdapter, abi.encodeWithSelector(IBridgeAdapter.NATIVE_BRIDGING_FEES.selector), abi.encode(false));
+
+        vm.expectRevert(AdapterManager.BridgingFeesTypeMismatch.selector);
+        vm.prank(manager);
+        coordinator.setIsLocalBridgeAdapter(bridgeType, IBridgeAdapter(newAdapter), true);
+    }
+
     function test_shouldRevert_whenOutboundAdapter_whenRemoving() public {
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, newAdapter);
 
