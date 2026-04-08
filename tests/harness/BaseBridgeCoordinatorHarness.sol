@@ -56,4 +56,8 @@ abstract contract BaseBridgeCoordinatorHarness is BridgeCoordinator {
     function workaround_setNonce(uint64 _nonce) external {
         nonce = _nonce;
     }
+
+    function workaround_setUnitBalanceOf(address whitelabel, uint256 balance) external {
+        unitBalanceOf[whitelabel] = balance;
+    }
 }
