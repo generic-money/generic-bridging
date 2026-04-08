@@ -4,14 +4,17 @@ pragma solidity 0.8.29;
 import { Test } from "forge-std/Test.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.sol";
 import { IBridgeAdapter } from "../../../src/interfaces/IBridgeAdapter.sol";
 import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterNativeFee.sol";
+import { IBridgeAdapterTokenFee } from "../../../src/interfaces/IBridgeAdapterTokenFee.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import {
     BridgeCoordinatorNativeFeesHarness,
+    BridgeCoordinatorTokenFeesHarness,
     BridgeCoordinatorHarness
 } from "../../harness/BridgeCoordinatorHarness.sol";
 
@@ -30,20 +33,27 @@ abstract contract BridgeCoordinatorTest is Test {
     address srcWhitelabel = address(0);
     bytes32 destWhitelabel = bytes32(0);
     bytes32 messageId = keccak256("messageId");
+    address feeToken = makeAddr("feeToken");
 
     uint16 bridgeType = 7;
     uint256 remoteChainId = 42;
     address localAdapter = makeAddr("localAdapter");
     bytes32 remoteAdapter = makeAddr("remoteAdapter").toBytes32WithLowAddress();
 
+    modifier tokenFeesCoordinator() {
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorTokenFeesHarness());
+        BridgeCoordinatorTokenFeesHarness(address(coordinator)).workaround_setFeeToken(feeToken);
+        _resetInitializableStorageSlot();
+        _setUpCoordinator();
+        _;
+    }
+
     function _resetInitializableStorageSlot() internal {
         // reset the Initializable storage slot to allow usage of deployed instance in tests
         vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
     }
 
-    function setUp() public virtual {
-        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorNativeFeesHarness());
-        _resetInitializableStorageSlot();
+    function _setUpCoordinator() internal {
         coordinator.initialize(unit, admin);
 
         vm.mockCall(
@@ -51,14 +61,25 @@ abstract contract BridgeCoordinatorTest is Test {
             abi.encodeWithSelector(IBridgeAdapter.bridgeCoordinator.selector),
             abi.encode(address(coordinator))
         );
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
-        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapterNativeFee.bridge.selector), "");
 
         coordinator.workaround_setIsLocalBridgeAdapter(bridgeType, localAdapter, true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(bridgeType, localAdapter);
         coordinator.workaround_setIsRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter, true);
         coordinator.workaround_setOutboundRemoteBridgeAdapter(bridgeType, remoteChainId, remoteAdapter);
+    }
+
+    function setUp() public virtual {
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorNativeFeesHarness());
+        _resetInitializableStorageSlot();
+        _setUpCoordinator();
+
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.bridgeType.selector), abi.encode(bridgeType));
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapter.estimateBridgeFee.selector), abi.encode(0));
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapterNativeFee.bridge.selector), "");
+        vm.mockCall(localAdapter, abi.encodeWithSelector(IBridgeAdapterTokenFee.bridge.selector), "");
+
+        vm.mockCall(feeToken, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
+        vm.mockCall(feeToken, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
     }
 }
 

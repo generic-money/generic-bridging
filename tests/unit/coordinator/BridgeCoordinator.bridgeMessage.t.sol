@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.29;
 
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+
 import { BridgeCoordinator } from "../../../src/coordinator/BridgeCoordinator.sol";
-import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterNativeFee.sol";
 import { BridgeMessageCoordinator, BridgeMessage } from "../../../src/coordinator/BridgeMessageCoordinator.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import {
     BridgeCoordinatorTest,
     BridgeCoordinatorHarness,
-    BridgeCoordinator_SettleInboundBridge_Test
+    BridgeCoordinator_SettleInboundBridge_Test,
+    IBridgeAdapterNativeFee,
+    IBridgeAdapterTokenFee
 } from "./BridgeCoordinator.t.sol";
 import { BridgeCoordinatorTokenFeesHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
@@ -50,12 +53,8 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         );
     }
 
-    function testFuzz_shouldRevert_whenNativeValueNotZero_whenTokenFees(uint256 fee) public {
+    function testFuzz_shouldRevert_whenNativeValueNotZero_whenTokenFees(uint256 fee) public tokenFeesCoordinator {
         vm.assume(fee > 0);
-
-        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorTokenFeesHarness());
-        _resetInitializableStorageSlot();
-        coordinator.initialize(unit, admin);
 
         deal(address(this), fee);
 
@@ -97,7 +96,7 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 0, "", 0);
     }
 
-    function testFuzz_shouldCallBridgeOnLocalAdapter(
+    function testFuzz_shouldCallBridgeOnLocalAdapter_whenNativeFees(
         uint256 fee,
         uint256 amount,
         bytes calldata bridgeParams
@@ -109,27 +108,66 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
 
         deal(sender, fee);
 
-        {
-            bridgeMessage.amount = amount;
-            bytes memory bridgeMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
-
-            vm.expectCall(
-                localAdapter,
-                fee,
-                abi.encodeWithSelector(
-                    IBridgeAdapterNativeFee.bridge.selector,
-                    remoteChainId,
-                    remoteAdapter,
-                    bridgeMessageData,
-                    sender, // caller as refund address
-                    bridgeParams,
-                    messageId
-                )
-            );
-        }
+        bridgeMessage.amount = amount;
+        vm.expectCall(
+            localAdapter,
+            fee,
+            abi.encodeWithSelector(
+                IBridgeAdapterNativeFee.bridge.selector,
+                remoteChainId,
+                remoteAdapter,
+                coordinator.encodeBridgeMessage(bridgeMessage),
+                sender, // caller as refund address
+                bridgeParams,
+                messageId
+            )
+        );
 
         vm.prank(sender);
         coordinator.bridge{ value: fee }(
+            bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeParams, fee
+        );
+    }
+
+    function test_shouldPullFeeToken_whenTokenFees() public tokenFeesCoordinator {
+        uint256 fee = 5 ether;
+
+        vm.expectCall(feeToken, abi.encodeWithSelector(IERC20.transferFrom.selector, sender, address(coordinator), fee));
+        vm.expectCall(feeToken, abi.encodeWithSelector(IERC20.approve.selector, localAdapter, fee));
+
+        vm.prank(sender);
+        coordinator.bridge(bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "", fee);
+    }
+
+    function testFuzz_shouldCallBridgeOnLocalAdapter_whenTokenFees(
+        uint256 fee,
+        uint256 amount,
+        bytes calldata bridgeParams
+    )
+        public
+        tokenFeesCoordinator
+    {
+        vm.assume(amount > 0);
+        fee = bound(fee, 1 ether, 10 ether);
+
+        bridgeMessage.amount = amount;
+        vm.expectCall(
+            localAdapter,
+            0,
+            abi.encodeWithSelector(
+                IBridgeAdapterTokenFee.bridge.selector,
+                remoteChainId,
+                remoteAdapter,
+                coordinator.encodeBridgeMessage(bridgeMessage),
+                sender, // caller as refund address
+                bridgeParams,
+                messageId,
+                fee
+            )
+        );
+
+        vm.prank(sender);
+        coordinator.bridge(
             bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, amount, bridgeParams, fee
         );
     }
@@ -216,12 +254,8 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         );
     }
 
-    function testFuzz_shouldRevert_whenNativeValueNotZero_whenTokenFees(uint256 fee) public {
+    function testFuzz_shouldRevert_whenNativeValueNotZero_whenTokenFees(uint256 fee) public tokenFeesCoordinator {
         vm.assume(fee > 0);
-
-        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorTokenFeesHarness());
-        _resetInitializableStorageSlot();
-        coordinator.initialize(unit, admin);
 
         deal(address(this), fee);
 
@@ -295,7 +329,7 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "", 0);
     }
 
-    function testFuzz_shouldBridgeRollbackMessage(
+    function testFuzz_shouldBridgeRollbackMessage_whenNativeFees(
         bytes32 msgId,
         address sender,
         uint256 amount,
@@ -348,6 +382,72 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         coordinator.rollback{ value: fee }(
             bridgeType, remoteChainId, originalMessageData, originalMessageId, bridgeParams, fee
         );
+    }
+
+    function test_shouldPullFeeToken_whenTokenFees() public tokenFeesCoordinator {
+        address caller = makeAddr("caller");
+        uint256 fee = 5 ether;
+        coordinator.workaround_setFailedMessageExecution(originalMessageId, failedMessagesHash);
+
+        vm.expectCall(feeToken, abi.encodeWithSelector(IERC20.transferFrom.selector, caller, address(coordinator), fee));
+        vm.expectCall(feeToken, abi.encodeWithSelector(IERC20.approve.selector, localAdapter, fee));
+
+        vm.prank(caller);
+        coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, "", fee);
+    }
+
+    function testFuzz_shouldBridgeRollbackMessage_whenTokenFees(
+        bytes32 msgId,
+        address sender,
+        uint256 amount,
+        uint256 fee,
+        bytes memory bridgeParams
+    )
+        public
+        tokenFeesCoordinator
+    {
+        vm.assume(msgId != bytes32(0));
+        vm.assume(sender != address(0));
+        fee = bound(fee, 0, 10 ether);
+
+        address caller = makeAddr("caller");
+
+        originalMessageId = msgId;
+        bridgeMessage.sender = sender.toBytes32WithLowAddress();
+        bridgeMessage.recipient = remoteRecipient;
+        bridgeMessage.amount = amount; // can be 0
+
+        originalMessageData = coordinator.encodeBridgeMessage(bridgeMessage);
+        failedMessagesHash = keccak256(abi.encode(remoteChainId, originalMessageData));
+        coordinator.workaround_setFailedMessageExecution(originalMessageId, failedMessagesHash);
+
+        bytes memory rollbackMessageData = coordinator.encodeBridgeMessage(
+            BridgeMessage({
+                sender: bytes32(0),
+                recipient: bridgeMessage.sender,
+                sourceWhitelabel: bytes32(0),
+                destinationWhitelabel: srcWhitelabel.toBytes32WithLowAddress(),
+                amount: bridgeMessage.amount
+            })
+        );
+
+        vm.expectCall(
+            localAdapter,
+            0,
+            abi.encodeWithSelector(
+                IBridgeAdapterTokenFee.bridge.selector,
+                remoteChainId,
+                remoteAdapter,
+                rollbackMessageData,
+                caller, // caller as refund address
+                bridgeParams,
+                messageId,
+                fee
+            )
+        );
+
+        vm.prank(caller);
+        coordinator.rollback(bridgeType, remoteChainId, originalMessageData, originalMessageId, bridgeParams, fee);
     }
 
     function test_shouldEmit_MessageOut() public {
