@@ -41,4 +41,14 @@ contract BridgeCoordinatorTokenFeesHarness is BridgeCoordinatorHarness {
     function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
         return false;
     }
+
+    address private __feeToken;
+
+    function workaround_setFeeToken(address feeToken) external {
+        __feeToken = feeToken;
+    }
+
+    function _feeToken() internal view virtual override returns (address) {
+        return __feeToken;
+    }
 }

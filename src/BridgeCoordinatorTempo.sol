@@ -22,7 +22,7 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
     /**
      * @notice LZEndpointDollar (LZD) token used for fees on Tempo
      */
-    IERC20 public constant LZD_TOKEN = IERC20(0x0cEb237E109eE22374a567c6b09F373C73FA4cBb);
+    address public constant LZD_TOKEN = 0x0cEb237E109eE22374a567c6b09F373C73FA4cBb;
 
     /**
      * @notice Thrown when the whitelabel address is missing for Tempo bridging operations
@@ -44,9 +44,8 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
     }
 
     /// @inheritdoc BridgeCoordinator
-    function _pullFeeTokenFor(address from, uint256 amount, address adapter) internal virtual override {
-        LZD_TOKEN.safeTransferFrom(from, address(this), amount);
-        LZD_TOKEN.approve(adapter, amount);
+    function _feeToken() internal virtual override returns (address) {
+        return LZD_TOKEN;
     }
 
     /**

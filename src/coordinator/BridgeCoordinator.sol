@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
 import { AdapterManager } from "./AdapterManager.sol";
 import { EmergencyManager } from "./EmergencyManager.sol";
@@ -21,6 +23,8 @@ abstract contract BridgeCoordinator is
     EmergencyManager,
     BridgeMessageCoordinator
 {
+    using SafeERC20 for IERC20;
+
     /**
      * @notice Emitted when a cross-chain message is dispatched
      * @param bridgeType The type of bridge protocol used for the operation
@@ -131,7 +135,9 @@ abstract contract BridgeCoordinator is
                 chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId
             );
         } else {
-            _pullFeeTokenFor(msg.sender, fee, adapter);
+            IERC20 feeToken = IERC20(_feeToken());
+            feeToken.safeTransferFrom(msg.sender, address(this), fee);
+            feeToken.approve(adapter, fee);
             IBridgeAdapterTokenFee(adapter)
                 .bridge(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId, fee);
         }
@@ -204,11 +210,9 @@ abstract contract BridgeCoordinator is
     }
 
     /**
-     * @notice Pulls the fee token from the sender and approves the adapter
-     * @dev This function should be overridden by child contracts to implement token-specific logic
-     * @param from The address from which to pull the fee token
-     * @param amount The amount of fee token to pull
-     * @param adapter The address of the adapter to approve the fee token for
+     * @notice Returns the address of the token used for paying bridge fees if token fees are enabled
      */
-    function _pullFeeTokenFor(address from, uint256 amount, address adapter) internal virtual { }
+    function _feeToken() internal virtual returns (address) {
+        return address(0);
+    }
 }
