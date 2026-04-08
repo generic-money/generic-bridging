@@ -6,7 +6,11 @@ import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterN
 import { BridgeMessageCoordinator, BridgeMessage } from "../../../src/coordinator/BridgeMessageCoordinator.sol";
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
-import { BridgeCoordinatorTest, BridgeCoordinator_SettleInboundBridge_Test } from "./BridgeCoordinator.t.sol";
+import {
+    BridgeCoordinatorTest,
+    BridgeCoordinatorHarness,
+    BridgeCoordinator_SettleInboundBridge_Test
+} from "./BridgeCoordinator.t.sol";
 import { BridgeCoordinatorTokenFeesHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
 using Bytes32AddressLib for address;
@@ -30,7 +34,12 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
         messageId = coordinator.workaround_nextMessageId(bridgeType, remoteChainId);
     }
 
-    function testFuzz_shouldRevert_whenNativeValueNotEqualFee_whenNativeFees(uint256 nativeFee, uint256 fee) public {
+    function testFuzz_shouldRevert_whenNativeValueNotEqualFee_whenNativeFees(
+        uint256 nativeFee,
+        uint256 fee
+    )
+        public
+    {
         vm.assume(nativeFee != fee);
 
         deal(address(this), nativeFee);
@@ -44,14 +53,14 @@ contract BridgeCoordinator_BridgeMessage_Bridge_Test is BridgeCoordinator_Bridge
     function testFuzz_shouldRevert_whenNativeValueNotZero_whenTokenFees(uint256 fee) public {
         vm.assume(fee > 0);
 
-        BridgeCoordinatorTokenFeesHarness tokenCoordinator = new BridgeCoordinatorTokenFeesHarness();
-        vm.store(address(tokenCoordinator), tokenCoordinator.exposed_initializableStorageSlot(), bytes32(0));
-        tokenCoordinator.initialize(unit, admin);
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorTokenFeesHarness());
+        _resetInitializableStorageSlot();
+        coordinator.initialize(unit, admin);
 
         deal(address(this), fee);
 
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_NativeFeeMismatch.selector);
-        tokenCoordinator.bridge{ value: fee }(
+        coordinator.bridge{ value: fee }(
             bridgeType, remoteChainId, owner, remoteRecipient, srcWhitelabel, destWhitelabel, 1, "", fee
         );
     }
@@ -191,7 +200,12 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
         messageId = coordinator.workaround_nextMessageId(bridgeType, remoteChainId);
     }
 
-    function testFuzz_shouldRevert_whenNativeValueNotEqualFee_whenNativeFees(uint256 nativeFee, uint256 fee) public {
+    function testFuzz_shouldRevert_whenNativeValueNotEqualFee_whenNativeFees(
+        uint256 nativeFee,
+        uint256 fee
+    )
+        public
+    {
         vm.assume(nativeFee != fee);
 
         deal(address(this), nativeFee);
@@ -205,14 +219,14 @@ contract BridgeCoordinator_BridgeMessage_Rollback_Test is BridgeCoordinator_Brid
     function testFuzz_shouldRevert_whenNativeValueNotZero_whenTokenFees(uint256 fee) public {
         vm.assume(fee > 0);
 
-        BridgeCoordinatorTokenFeesHarness tokenCoordinator = new BridgeCoordinatorTokenFeesHarness();
-        vm.store(address(tokenCoordinator), tokenCoordinator.exposed_initializableStorageSlot(), bytes32(0));
-        tokenCoordinator.initialize(unit, admin);
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorTokenFeesHarness());
+        _resetInitializableStorageSlot();
+        coordinator.initialize(unit, admin);
 
         deal(address(this), fee);
 
         vm.expectRevert(BridgeMessageCoordinator.BridgeMessage_NativeFeeMismatch.selector);
-        tokenCoordinator.rollback{ value: fee }(bridgeType, remoteChainId, originalMessageData, originalMessageId, "", fee);
+        coordinator.rollback{ value: fee }(bridgeType, remoteChainId, originalMessageData, originalMessageId, "", fee);
     }
 
     function test_shouldRevert_whenNoOutboundLocalAdapter() public {

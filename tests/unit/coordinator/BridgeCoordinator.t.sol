@@ -11,7 +11,8 @@ import { IBridgeAdapterNativeFee } from "../../../src/interfaces/IBridgeAdapterN
 import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import {
-    BridgeCoordinatorNativeFeesHarness as BridgeCoordinatorHarness
+    BridgeCoordinatorNativeFeesHarness,
+    BridgeCoordinatorHarness
 } from "../../harness/BridgeCoordinatorHarness.sol";
 
 using Bytes32AddressLib for address;
@@ -41,7 +42,7 @@ abstract contract BridgeCoordinatorTest is Test {
     }
 
     function setUp() public virtual {
-        coordinator = new BridgeCoordinatorHarness();
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorNativeFeesHarness());
         _resetInitializableStorageSlot();
         coordinator.initialize(unit, admin);
 
@@ -63,7 +64,7 @@ abstract contract BridgeCoordinatorTest is Test {
 
 contract BridgeCoordinator_Constructor_Test is BridgeCoordinatorTest {
     function test_shouldDisableInitializers() public {
-        coordinator = new BridgeCoordinatorHarness();
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorNativeFeesHarness());
         bytes32 initializableSlotValue = vm.load(address(coordinator), coordinator.exposed_initializableStorageSlot());
         assertEq(uint64(uint256(initializableSlotValue)), type(uint64).max);
     }
@@ -71,7 +72,7 @@ contract BridgeCoordinator_Constructor_Test is BridgeCoordinatorTest {
 
 contract BridgeCoordinator_Initialize_Test is BridgeCoordinatorTest {
     function setUp() public override {
-        coordinator = new BridgeCoordinatorHarness();
+        coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorNativeFeesHarness());
         _resetInitializableStorageSlot();
     }
 
