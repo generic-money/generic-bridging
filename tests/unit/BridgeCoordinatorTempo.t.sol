@@ -33,7 +33,7 @@ abstract contract BridgeCoordinatorTempoTest is Test {
 contract BridgeCoordinatorTempo_RestrictUnits_Test is BridgeCoordinatorTempoTest {
     uint256 initialBalance = 1_000_000 ether;
 
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
         coordinator.workaround_setUnitBalanceOf(whitelabel, initialBalance);
     }
@@ -68,7 +68,9 @@ contract BridgeCoordinatorTempo_RestrictUnits_Test is BridgeCoordinatorTempoTest
     function testFuzz_shouldTransferAndBurnWhitelabel(uint256 tip20Amount) public {
         tip20Amount = bound(tip20Amount, 1e6, 1_000_000e6);
 
-        vm.expectCall(whitelabel, abi.encodeWithSelector(IERC20.transferFrom.selector, owner, address(coordinator), tip20Amount));
+        vm.expectCall(
+            whitelabel, abi.encodeWithSelector(IERC20.transferFrom.selector, owner, address(coordinator), tip20Amount)
+        );
         vm.expectCall(whitelabel, abi.encodeWithSelector(ITIP20Mintable.burn.selector, tip20Amount));
 
         coordinator.exposed_restrictUnits(whitelabel, owner, tip20Amount * 1e12);

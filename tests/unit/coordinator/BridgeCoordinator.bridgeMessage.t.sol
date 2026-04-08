@@ -9,12 +9,10 @@ import { Bytes32AddressLib } from "../../../src/utils/Bytes32AddressLib.sol";
 
 import {
     BridgeCoordinatorTest,
-    BridgeCoordinatorHarness,
     BridgeCoordinator_SettleInboundBridge_Test,
     IBridgeAdapterNativeFee,
     IBridgeAdapterTokenFee
 } from "./BridgeCoordinator.t.sol";
-import { BridgeCoordinatorTokenFeesHarness } from "../../harness/BridgeCoordinatorHarness.sol";
 
 using Bytes32AddressLib for address;
 using Bytes32AddressLib for bytes32;
