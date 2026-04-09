@@ -25,6 +25,10 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
     address public constant LZD_TOKEN = 0x0cEb237E109eE22374a567c6b09F373C73FA4cBb;
 
     /**
+     * @notice Thrown when the generic unit address is non-zero during initialization
+     */
+    error NonZeroGenericUnit();
+    /**
      * @notice Thrown when the whitelabel address is missing for Tempo bridging operations
      */
     error MissingWhitelabelAddress();
@@ -46,6 +50,17 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
     /// @inheritdoc BridgeCoordinator
     function _feeToken() internal virtual override returns (address) {
         return LZD_TOKEN;
+    }
+
+    /**
+     * @notice Initializes the BridgeCoordinator admin
+     * @dev Can only be called once due to initializer modifier
+     * @param _admin The address to be granted DEFAULT_ADMIN_ROLE for managing the coordinator
+     */
+    function initialize(address _genericUnit, address _admin) public virtual override initializer {
+        require(_genericUnit == address(0), NonZeroGenericUnit());
+        require(_admin != address(0), ZeroAdmin());
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
     /**

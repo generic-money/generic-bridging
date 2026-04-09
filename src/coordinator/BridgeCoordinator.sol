@@ -96,7 +96,7 @@ abstract contract BridgeCoordinator is
      * @param _genericUnit The address of the Generic unit token to be managed by this coordinator
      * @param _admin The address to be granted DEFAULT_ADMIN_ROLE for managing the coordinator
      */
-    function initialize(address _genericUnit, address _admin) external initializer {
+    function initialize(address _genericUnit, address _admin) public virtual initializer {
         require(_genericUnit != address(0), ZeroGenericUnit());
         require(_admin != address(0), ZeroAdmin());
         genericUnit = _genericUnit;

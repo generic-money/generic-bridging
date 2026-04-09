@@ -3,7 +3,9 @@ pragma solidity 0.8.29;
 
 import { Test } from "forge-std/Test.sol";
 
-import { BridgeCoordinatorTempo, IERC20, ITIP20Mintable } from "../../src/BridgeCoordinatorTempo.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+import { BridgeCoordinatorTempo, BridgeCoordinator, IERC20, ITIP20Mintable } from "../../src/BridgeCoordinatorTempo.sol";
 
 import { BridgeCoordinatorTempoHarness } from "../harness/BridgeCoordinatorTempoHarness.sol";
 
@@ -22,11 +24,44 @@ abstract contract BridgeCoordinatorTempoTest is Test {
     function setUp() public virtual {
         coordinator = new BridgeCoordinatorTempoHarness();
         _resetInitializableStorageSlot();
-        coordinator.initialize(makeAddr("unit"), admin);
+        coordinator.initialize(address(0), admin);
 
         vm.mockCall(whitelabel, abi.encodeWithSelector(ITIP20Mintable.mint.selector), "");
         vm.mockCall(whitelabel, abi.encodeWithSelector(ITIP20Mintable.burn.selector), "");
         vm.mockCall(whitelabel, abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
+    }
+}
+
+contract BridgeCoordinatorTempo_Initialize_Test is BridgeCoordinatorTempoTest {
+    function setUp() public override {
+        coordinator = new BridgeCoordinatorTempoHarness();
+        _resetInitializableStorageSlot();
+    }
+
+    function testFuzz_shouldSetAdmin(address _admin) public {
+        vm.assume(_admin != address(0));
+
+        coordinator.initialize(address(0), _admin);
+
+        assertTrue(coordinator.hasRole(coordinator.DEFAULT_ADMIN_ROLE(), _admin));
+    }
+
+    function testFuzz_shouldRevertIfNonZeroGenericUnit(address _unit) public {
+        vm.assume(_unit != address(0));
+        vm.expectRevert(BridgeCoordinatorTempo.NonZeroGenericUnit.selector);
+        coordinator.initialize(_unit, admin);
+    }
+
+    function test_shouldRevertIfZeroAdmin() public {
+        vm.expectRevert(BridgeCoordinator.ZeroAdmin.selector);
+        coordinator.initialize(address(0), address(0));
+    }
+
+    function test_shouldRevertIfAlreadyInitialized() public {
+        coordinator.initialize(address(0), admin);
+
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        coordinator.initialize(address(0), admin);
     }
 }
 
