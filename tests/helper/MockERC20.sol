@@ -16,7 +16,7 @@ contract MockERC20 is IERC20Mintable, ERC20 {
         return _decimals;
     }
 
-    function mint(address to, uint256 amount) external {
+    function mint(address to, uint256 amount) external virtual {
         _mint(to, amount);
         emit Mint(to, amount);
     }
