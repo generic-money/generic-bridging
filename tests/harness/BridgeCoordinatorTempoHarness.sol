@@ -16,8 +16,4 @@ contract BridgeCoordinatorTempoHarness is BaseBridgeCoordinatorHarness, BridgeCo
     {
         BridgeCoordinatorTempo.initialize(_genericUnit, _admin);
     }
-
-    function _feeToken() internal virtual override(BridgeCoordinatorTempo, BridgeCoordinator) returns (address) {
-        return BridgeCoordinatorTempo._feeToken();
-    }
 }

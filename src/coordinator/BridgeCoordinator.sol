@@ -135,7 +135,7 @@ abstract contract BridgeCoordinator is
                 chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId
             );
         } else {
-            IERC20 feeToken = IERC20(_feeToken());
+            IERC20 feeToken = IERC20(IBridgeAdapterTokenFee(adapter).feeToken());
             feeToken.safeTransferFrom(msg.sender, address(this), fee);
             feeToken.approve(adapter, fee);
             IBridgeAdapterTokenFee(adapter)
@@ -207,12 +207,5 @@ abstract contract BridgeCoordinator is
         }
         // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encodePacked(block.chainid, dstChainId, bridgeType, block.timestamp, nonce));
-    }
-
-    /**
-     * @notice Returns the address of the token used for paying bridge fees if token fees are enabled
-     */
-    function _feeToken() internal virtual returns (address) {
-        return address(0);
     }
 }

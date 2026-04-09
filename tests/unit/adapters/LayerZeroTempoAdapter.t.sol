@@ -25,6 +25,9 @@ import { MockERC20 } from "../../helper/MockERC20.sol";
 
 contract LayerZeroTempoAdapterTest is TestHelperOz5 {
     using PacketV1Codec for bytes;
+
+    address public constant LZD_TOKEN = 0x0cEb237E109eE22374a567c6b09F373C73FA4cBb;
+
     LayerZeroTempoAdapter internal l1Adapter;
     LayerZeroTempoAdapter internal l2Adapter;
     BridgeCoordinatorHarness internal coordinator;
@@ -49,7 +52,8 @@ contract LayerZeroTempoAdapterTest is TestHelperOz5 {
     function setUp() public override {
         super.setUp();
 
-        feeToken = new MockERC20(6);
+        vm.etch(LZD_TOKEN, address(new MockERC20(6)).code);
+        feeToken = MockERC20(LZD_TOKEN);
         vm.label(address(feeToken), "feeToken");
 
         address[] memory feeTokens = new address[](2);
@@ -72,7 +76,6 @@ contract LayerZeroTempoAdapterTest is TestHelperOz5 {
         remoteAdapterId = bytes32(uint256(uint160(address(l2Adapter))));
 
         vm.startPrank(owner);
-        coordinator.workaround_setFeeToken(address(feeToken));
         coordinator.workaround_setIsLocalBridgeAdapter(BRIDGE_TYPE, address(l1Adapter), true);
         coordinator.workaround_setOutboundLocalBridgeAdapter(BRIDGE_TYPE, address(l1Adapter));
         coordinator.workaround_setIsRemoteBridgeAdapter(BRIDGE_TYPE, CHAIN_ID_L2, remoteAdapterId, true);

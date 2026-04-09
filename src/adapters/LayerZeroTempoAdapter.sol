@@ -44,10 +44,19 @@ contract LayerZeroTempoAdapter is IBridgeAdapterTokenFee, BaseAdapter, OAppAlt, 
      * @notice Msg type for sending a string, for use in OAppOptionsType3 as an enforced option
      */
     uint16 public constant SEND = 1;
+    /**
+     * @notice LZEndpointDollar (LZD) token used for fees on Tempo
+     */
+    address public constant LZD_TOKEN = 0x0cEb237E109eE22374a567c6b09F373C73FA4cBb;
 
     // forge-lint: disable-next-line(mixed-case-function)
     function NATIVE_BRIDGING_FEES() public pure returns (bool) {
         return false;
+    }
+
+    /// @inheritdoc IBridgeAdapterTokenFee
+    function feeToken() external pure returns (address) {
+        return LZD_TOKEN;
     }
 
     /**

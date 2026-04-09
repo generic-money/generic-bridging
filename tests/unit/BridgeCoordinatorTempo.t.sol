@@ -5,7 +5,12 @@ import { Test } from "forge-std/Test.sol";
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import { BridgeCoordinatorTempo, BridgeCoordinator, IERC20, ITIP20Mintable } from "../../src/BridgeCoordinatorTempo.sol";
+import {
+    BridgeCoordinatorTempo,
+    BridgeCoordinator,
+    IERC20,
+    ITIP20Mintable
+} from "../../src/BridgeCoordinatorTempo.sol";
 
 import { BridgeCoordinatorTempoHarness } from "../harness/BridgeCoordinatorTempoHarness.sol";
 

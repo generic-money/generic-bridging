@@ -42,7 +42,9 @@ abstract contract BridgeCoordinatorTest is Test {
 
     modifier tokenFeesCoordinator() {
         coordinator = BridgeCoordinatorHarness(new BridgeCoordinatorTokenFeesHarness());
-        BridgeCoordinatorTokenFeesHarness(address(coordinator)).workaround_setFeeToken(feeToken);
+        vm.mockCall(
+            localAdapter, abi.encodeWithSelector(IBridgeAdapterTokenFee.feeToken.selector), abi.encode(feeToken)
+        );
         _resetInitializableStorageSlot();
         _setUpCoordinator();
         _;

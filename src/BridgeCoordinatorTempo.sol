@@ -19,10 +19,6 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
      * @notice Factor to convert between 18 decimals used for units and 6 decimals used for TIP-20 tokens
      */
     uint256 public constant DECIMALS_DELTA_FACTOR = 1e12;
-    /**
-     * @notice LZEndpointDollar (LZD) token used for fees on Tempo
-     */
-    address public constant LZD_TOKEN = 0x0cEb237E109eE22374a567c6b09F373C73FA4cBb;
 
     /**
      * @notice Thrown when the generic unit address is non-zero during initialization
@@ -45,11 +41,6 @@ contract BridgeCoordinatorTempo is BridgeCoordinator {
     // forge-lint: disable-next-line(mixed-case-function)
     function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
         return false;
-    }
-
-    /// @inheritdoc BridgeCoordinator
-    function _feeToken() internal virtual override returns (address) {
-        return LZD_TOKEN;
     }
 
     /**
