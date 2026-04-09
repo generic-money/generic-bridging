@@ -38,7 +38,11 @@ abstract contract BridgeCoordinatorTempoIntegrationTest is Test {
 
     function setUp() public virtual {
         coordinator = BridgeCoordinatorTempoIntegrationHarness(
-            address(new TransparentUpgradeableProxy(address(new BridgeCoordinatorTempoIntegrationHarness()), address(this), ""))
+            address(
+                new TransparentUpgradeableProxy(
+                    address(new BridgeCoordinatorTempoIntegrationHarness()), address(this), ""
+                )
+            )
         );
         coordinator.initialize(address(0), address(this));
 
