@@ -9,7 +9,7 @@ import { BridgeCoordinatorL1, BridgeCoordinator } from "../../src/BridgeCoordina
 import { PredepositCoordinator } from "../../src/coordinator/PredepositCoordinator.sol";
 import { BridgeMessageCoordinator, BridgeMessage } from "../../src/coordinator/BridgeMessageCoordinator.sol";
 
-import { MockBridgeAdapter } from "../helper/MockBridgeAdapter.sol";
+import { MockBridgeAdapterNativeFee } from "../helper/MockBridgeAdapterNativeFee.sol";
 import { MockERC20 } from "../helper/MockERC20.sol";
 import { MockWhitelabeledUnit } from "../helper/MockWhitelabeledUnit.sol";
 
@@ -18,7 +18,7 @@ abstract contract BridgeCoordinatorL1IntegrationTest is Test {
     MockERC20 unit;
     MockWhitelabeledUnit gusd;
 
-    MockBridgeAdapter localAdapter;
+    MockBridgeAdapterNativeFee localAdapter;
     bytes32 remoteAdapter = keccak256("remote adapter");
 
     address controller = makeAddr("controller");
@@ -42,7 +42,7 @@ abstract contract BridgeCoordinatorL1IntegrationTest is Test {
         coordinator.grantRole(coordinator.ADAPTER_MANAGER_ROLE(), address(this));
         coordinator.grantRole(coordinator.PREDEPOSIT_MANAGER_ROLE(), address(this));
 
-        localAdapter = new MockBridgeAdapter(bridgeType, address(coordinator));
+        localAdapter = new MockBridgeAdapterNativeFee(bridgeType, address(coordinator));
 
         deal(address(unit), user, 1_000_000e18, true);
         vm.startPrank(user);
@@ -192,7 +192,7 @@ contract BridgeCoordinatorL1_Bridge_IntegrationTest is BridgeCoordinatorL1Integr
 
         // Setup different bridge type
         uint16 bridgeType2 = bridgeType + 1;
-        MockBridgeAdapter localAdapter2 = new MockBridgeAdapter(bridgeType2, address(coordinator));
+        MockBridgeAdapterNativeFee localAdapter2 = new MockBridgeAdapterNativeFee(bridgeType2, address(coordinator));
         coordinator.setIsLocalBridgeAdapter(bridgeType2, localAdapter2, true);
         coordinator.setOutboundLocalBridgeAdapter(bridgeType2, localAdapter2);
         coordinator.setIsRemoteBridgeAdapter(bridgeType2, chainId, remoteAdapter, true);
