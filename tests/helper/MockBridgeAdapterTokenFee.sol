@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.29;
 
-import { IBridgeAdapter } from "../../src/interfaces/IBridgeAdapter.sol";
+import { IBridgeAdapterTokenFee } from "../../src/interfaces/IBridgeAdapterTokenFee.sol";
 
-contract MockBridgeAdapter is IBridgeAdapter {
+contract MockBridgeAdapterTokenFee is IBridgeAdapterTokenFee {
     uint16 private immutable _bridgeType;
     address private immutable _coordinator;
+    address private immutable _feeToken;
+
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure returns (bool) {
+        return false;
+    }
+
+    function feeToken() external view returns (address) {
+        return _feeToken;
+    }
 
     struct BridgeCallParams {
         uint256 chainId;
@@ -18,9 +28,10 @@ contract MockBridgeAdapter is IBridgeAdapter {
 
     BridgeCallParams public lastBridgeCall;
 
-    constructor(uint16 bridgeType_, address coordinator_) {
+    constructor(uint16 bridgeType_, address coordinator_, address feeToken_) {
         _bridgeType = bridgeType_;
         _coordinator = coordinator_;
+        _feeToken = feeToken_;
     }
 
     function bridge(
@@ -29,12 +40,12 @@ contract MockBridgeAdapter is IBridgeAdapter {
         bytes calldata message,
         address refundAddress,
         bytes calldata bridgeParams,
-        bytes32 messageId
+        bytes32 messageId,
+        uint256 fee
     )
         external
-        payable
     {
-        require(msg.value == estimateBridgeFee(chainId, message, bridgeParams), "Incorrect fee sent");
+        require(fee == estimateBridgeFee(chainId, message, bridgeParams), "Incorrect fee sent");
         lastBridgeCall = BridgeCallParams({
             chainId: chainId,
             remoteAdapter: remoteAdapter,

@@ -8,6 +8,12 @@ pragma solidity >=0.8.0;
  */
 interface IBridgeAdapter {
     /**
+     * @notice Indicates whether the adapter expects native fees or token fees
+     */
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() external pure returns (bool);
+
+    /**
      * @notice Quotes the native fee required to execute a bridge call.
      * @param chainId Destination chain identifier recognised by the adapter implementation.
      * @param message Payload that will be forwarded to the remote coordinator for settlement.

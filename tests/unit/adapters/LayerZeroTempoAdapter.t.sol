@@ -4,7 +4,6 @@ pragma solidity 0.8.29;
 import { Vm } from "forge-std/Vm.sol";
 
 import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
-import { Origin } from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import { ExecutorOptions } from "@layerzerolabs/lz-evm-messagelib-v2/contracts/libs/ExecutorOptions.sol";
 import { PacketV1Codec } from "@layerzerolabs/lz-evm-protocol-v2/contracts/messagelib/libs/PacketV1Codec.sol";
 import {
@@ -17,38 +16,20 @@ import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/I
 
 import { LayerZeroTempoAdapter } from "../../../src/adapters/LayerZeroTempoAdapter.sol";
 import { BaseAdapter } from "../../../src/adapters/BaseAdapter.sol";
-import { IBridgeCoordinator } from "../../../src/interfaces/IBridgeCoordinator.sol";
 import { Message, MessageType, BridgeMessage } from "../../../src/coordinator/Message.sol";
 
-import { BridgeCoordinatorHarness } from "../../harness/BridgeCoordinatorHarness.sol";
+import {
+    BridgeCoordinatorTokenFeesHarness as BridgeCoordinatorHarness
+} from "../../harness/BridgeCoordinatorHarness.sol";
 import { MockERC20 } from "../../helper/MockERC20.sol";
-
-contract LayerZeroTempoAdapterHarness is LayerZeroTempoAdapter {
-    constructor(
-        IBridgeCoordinator coordinator,
-        address owner,
-        address endpoint
-    )
-        LayerZeroTempoAdapter(coordinator, owner, endpoint)
-    { }
-
-    function exposedLzReceive(
-        Origin calldata origin,
-        bytes32 guid,
-        bytes calldata payload,
-        address executor,
-        bytes calldata extraData
-    )
-        external
-    {
-        _lzReceive(origin, guid, payload, executor, extraData);
-    }
-}
 
 contract LayerZeroTempoAdapterTest is TestHelperOz5 {
     using PacketV1Codec for bytes;
-    LayerZeroTempoAdapterHarness internal l1Adapter;
-    LayerZeroTempoAdapterHarness internal l2Adapter;
+
+    address public constant LZD_TOKEN = 0x0cEb237E109eE22374a567c6b09F373C73FA4cBb;
+
+    LayerZeroTempoAdapter internal l1Adapter;
+    LayerZeroTempoAdapter internal l2Adapter;
     BridgeCoordinatorHarness internal coordinator;
     MockERC20 internal feeToken;
 
@@ -71,7 +52,8 @@ contract LayerZeroTempoAdapterTest is TestHelperOz5 {
     function setUp() public override {
         super.setUp();
 
-        feeToken = new MockERC20(6);
+        vm.etch(LZD_TOKEN, address(new MockERC20(6)).code);
+        feeToken = MockERC20(LZD_TOKEN);
         vm.label(address(feeToken), "feeToken");
 
         address[] memory feeTokens = new address[](2);
@@ -83,8 +65,8 @@ contract LayerZeroTempoAdapterTest is TestHelperOz5 {
         vm.store(address(coordinator), coordinator.exposed_initializableStorageSlot(), bytes32(0));
         coordinator.initialize(unitToken, owner);
 
-        l1Adapter = new LayerZeroTempoAdapterHarness(coordinator, owner, endpoints[EID_L1]);
-        l2Adapter = new LayerZeroTempoAdapterHarness(coordinator, owner, endpoints[EID_L2]);
+        l1Adapter = new LayerZeroTempoAdapter(coordinator, owner, endpoints[EID_L1]);
+        l2Adapter = new LayerZeroTempoAdapter(coordinator, owner, endpoints[EID_L2]);
 
         vm.startPrank(address(coordinator));
         feeToken.approve(address(l1Adapter), type(uint256).max);
@@ -351,77 +333,78 @@ contract LayerZeroTempoAdapterTest is TestHelperOz5 {
         assertEq(l1Adapter.pendingOwner(), address(0), "pendingOwner not cleared");
     }
 
-    // Note: update test after implementing token fee in Bridge Coordinator
-    // function test_bridgeRoundTripEndToEnd() public {
-    //     address user = makeAddr("user");
-    //     address remoteRecipientAddress = makeAddr("remoteRecipient");
-    //     uint256 amount = 77 ether;
+    function test_bridgeRoundTripEndToEnd() public {
+        address user = makeAddr("user");
+        address remoteRecipientAddress = makeAddr("remoteRecipient");
+        uint256 amount = 77 ether;
 
-    //     bytes32 remoteRecipient = coordinator.encodeOmnichainAddress(remoteRecipientAddress);
-    //     BridgeMessage memory bridgeMessage = BridgeMessage({
-    //         sender: coordinator.encodeOmnichainAddress(user),
-    //         recipient: remoteRecipient,
-    //         sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
-    //         destinationWhitelabel: destWhitelabel,
-    //         amount: amount
-    //     });
-    //     Message memory message = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
+        bytes32 remoteRecipient = coordinator.encodeOmnichainAddress(remoteRecipientAddress);
+        BridgeMessage memory bridgeMessage = BridgeMessage({
+            sender: coordinator.encodeOmnichainAddress(user),
+            recipient: remoteRecipient,
+            sourceWhitelabel: coordinator.encodeOmnichainAddress(srcWhitelabel),
+            destinationWhitelabel: destWhitelabel,
+            amount: amount
+        });
+        Message memory message = Message({ messageType: MessageType.BRIDGE, data: abi.encode(bridgeMessage) });
 
-    //     bytes memory bridgeOptions = buildReceiveOptions(200_000);
-    //     uint256 nativeFee = l1Adapter.estimateBridgeFee(CHAIN_ID_L2, abi.encode(message), bridgeOptions);
+        bytes memory bridgeOptions = buildReceiveOptions(200_000);
+        uint256 nativeFee = l1Adapter.estimateBridgeFee(CHAIN_ID_L2, abi.encode(message), bridgeOptions);
 
-    //     vm.deal(user, nativeFee);
-    //     vm.startPrank(user);
-    //     vm.recordLogs();
-    //     messageId = coordinator.bridge(
-    //         BRIDGE_TYPE,
-    //         CHAIN_ID_L2,
-    //         user,
-    //         remoteRecipient,
-    //         srcWhitelabel,
-    //         destWhitelabel,
-    //         amount,
-    //         bridgeOptions,
-    //         nativeFee
-    //     );
-    //     vm.stopPrank();
+        deal(address(feeToken), user, nativeFee);
+        vm.startPrank(user);
+        feeToken.approve(address(coordinator), nativeFee);
 
-    //     {
-    //         (address outWhitelabel_, address owner_, uint256 outAmount_) = coordinator.lastRestrictCall();
-    //         assertEq(outWhitelabel_, srcWhitelabel, "whitelabel mismatch on restrict");
-    //         assertEq(owner_, user, "recipient mismatch on restrict");
-    //         assertEq(outAmount_, amount, "amount mismatch on restrict");
-    //     }
+        vm.recordLogs();
+        messageId = coordinator.bridge(
+            BRIDGE_TYPE,
+            CHAIN_ID_L2,
+            user,
+            remoteRecipient,
+            srcWhitelabel,
+            destWhitelabel,
+            amount,
+            bridgeOptions,
+            nativeFee
+        );
+        vm.stopPrank();
 
-    //     Vm.Log[] memory logs = vm.getRecordedLogs();
-    //     _assertMessageOutEvent(logs, messageId, abi.encode(message));
+        {
+            (address outWhitelabel_, address owner_, uint256 outAmount_) = coordinator.lastRestrictCall();
+            assertEq(outWhitelabel_, srcWhitelabel, "whitelabel mismatch on restrict");
+            assertEq(owner_, user, "recipient mismatch on restrict");
+            assertEq(outAmount_, amount, "amount mismatch on restrict");
+        }
 
-    //     assertTrue(hasPendingPackets(EID_L2, remoteAdapterId), "outbound packet missing");
-    //     bytes memory packet = getNextInflightPacket(EID_L2, remoteAdapterId);
-    //     this._assertPacketFields(packet, abi.encode(message), messageId, bridgeOptions);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _assertMessageOutEvent(logs, messageId, abi.encode(message));
 
-    //     vm.startPrank(owner);
-    //     coordinator.workaround_setIsLocalBridgeAdapter(BRIDGE_TYPE, address(l2Adapter), true);
-    //     coordinator.workaround_setIsRemoteBridgeAdapter(
-    //         BRIDGE_TYPE, CHAIN_ID_L2, bytes32(uint256(uint160(address(l1Adapter)))), true
-    //     );
-    //     vm.stopPrank();
-    //     vm.recordLogs();
-    //     verifyPackets(EID_L2, address(l2Adapter));
-    //     logs = vm.getRecordedLogs();
-    //     _assertMessageInEvent(logs, messageId, abi.encode(message));
+        assertTrue(hasPendingPackets(EID_L2, remoteAdapterId), "outbound packet missing");
+        bytes memory packet = getNextInflightPacket(EID_L2, remoteAdapterId);
+        this._assertPacketFields(packet, abi.encode(message), messageId, bridgeOptions);
 
-    //     {
-    //         (address inWhitelabel_, address recipient_, uint256 inAmount_) = coordinator.lastReleaseCall();
-    //         assertEq(
-    //             inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release"
-    //         );
-    //         assertEq(recipient_, remoteRecipientAddress, "recipient mismatch on release");
-    //         assertEq(inAmount_, amount, "amount mismatch on release");
-    //     }
+        vm.startPrank(owner);
+        coordinator.workaround_setIsLocalBridgeAdapter(BRIDGE_TYPE, address(l2Adapter), true);
+        coordinator.workaround_setIsRemoteBridgeAdapter(
+            BRIDGE_TYPE, CHAIN_ID_L2, bytes32(uint256(uint160(address(l1Adapter)))), true
+        );
+        vm.stopPrank();
+        vm.recordLogs();
+        verifyPackets(EID_L2, address(l2Adapter));
+        logs = vm.getRecordedLogs();
+        _assertMessageInEvent(logs, messageId, abi.encode(message));
 
-    //     assertFalse(hasPendingPackets(EID_L2, remoteAdapterId), "packet queue not drained");
-    // }
+        {
+            (address inWhitelabel_, address recipient_, uint256 inAmount_) = coordinator.lastReleaseCall();
+            assertEq(
+                inWhitelabel_, coordinator.decodeOmnichainAddress(destWhitelabel), "whitelabel mismatch on release"
+            );
+            assertEq(recipient_, remoteRecipientAddress, "recipient mismatch on release");
+            assertEq(inAmount_, amount, "amount mismatch on release");
+        }
+
+        assertFalse(hasPendingPackets(EID_L2, remoteAdapterId), "packet queue not drained");
+    }
 
     function _assertMessageInEvent(
         Vm.Log[] memory entries,

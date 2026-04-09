@@ -238,7 +238,7 @@ abstract contract PredepositCoordinator is BaseBridgeCoordinator, BridgeMessageC
             destinationWhitelabel: chain.whitelabel,
             amount: amount
         });
-        messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams);
+        messageId = _dispatchMessage(bridgeType, chainId, encodeBridgeMessage(bridgeMessage), bridgeParams, msg.value);
 
         emit BridgedOut(msg.sender, owner, remoteRecipient, amount, messageId, bridgeMessage);
         emit PredepositBridgedOut(chainNickname, messageId);

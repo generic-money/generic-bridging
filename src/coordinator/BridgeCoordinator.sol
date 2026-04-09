@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
-import { IBridgeAdapterNativeFee } from "../interfaces/IBridgeAdapterNativeFee.sol";
 import { AdapterManager } from "./AdapterManager.sol";
 import { EmergencyManager } from "./EmergencyManager.sol";
 import { BridgeMessageCoordinator } from "./BridgeMessageCoordinator.sol";
 import { Message, MessageType } from "./Message.sol";
+import { IBridgeAdapterNativeFee } from "../interfaces/IBridgeAdapterNativeFee.sol";
+import { IBridgeAdapterTokenFee } from "../interfaces/IBridgeAdapterTokenFee.sol";
 
 /**
  * @title BridgeCoordinator
@@ -20,6 +23,8 @@ abstract contract BridgeCoordinator is
     EmergencyManager,
     BridgeMessageCoordinator
 {
+    using SafeERC20 for IERC20;
+
     /**
      * @notice Emitted when a cross-chain message is dispatched
      * @param bridgeType The type of bridge protocol used for the operation
@@ -91,7 +96,7 @@ abstract contract BridgeCoordinator is
      * @param _genericUnit The address of the Generic unit token to be managed by this coordinator
      * @param _admin The address to be granted DEFAULT_ADMIN_ROLE for managing the coordinator
      */
-    function initialize(address _genericUnit, address _admin) external initializer {
+    function initialize(address _genericUnit, address _admin) public virtual initializer {
         require(_genericUnit != address(0), ZeroGenericUnit());
         require(_admin != address(0), ZeroAdmin());
         genericUnit = _genericUnit;
@@ -105,25 +110,37 @@ abstract contract BridgeCoordinator is
      * @param chainId The destination chain ID
      * @param messageData The encoded bridge message data to be sent
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @param fee The fee amount to be paid for the bridge operation (native or token)
      * @return messageId Unique identifier for tracking the cross-chain message
      */
     function _dispatchMessage(
         uint16 bridgeType,
         uint256 chainId,
         bytes memory messageData,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        uint256 fee
     )
         internal
         override
         returns (bytes32 messageId)
     {
-        IBridgeAdapterNativeFee adapter = IBridgeAdapterNativeFee(address(outboundLocalBridgeAdapter(bridgeType)));
+        address adapter = outboundLocalBridgeAdapter(bridgeType);
         bytes32 remoteAdapter = outboundRemoteBridgeAdapter(bridgeType, chainId);
-        require(address(adapter) != address(0), NoOutboundLocalBridgeAdapter());
+        require(adapter != address(0), NoOutboundLocalBridgeAdapter());
         require(remoteAdapter != bytes32(0), NoOutboundRemoteBridgeAdapter());
 
         messageId = _generateMessageId(bridgeType, chainId);
-        adapter.bridge{ value: msg.value }(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId);
+        if (NATIVE_BRIDGING_FEES()) {
+            IBridgeAdapterNativeFee(adapter).bridge{ value: fee }(
+                chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId
+            );
+        } else {
+            IERC20 feeToken = IERC20(IBridgeAdapterTokenFee(adapter).feeToken());
+            feeToken.safeTransferFrom(msg.sender, address(this), fee);
+            feeToken.approve(adapter, fee);
+            IBridgeAdapterTokenFee(adapter)
+                .bridge(chainId, remoteAdapter, messageData, msg.sender, bridgeParams, messageId, fee);
+        }
 
         emit MessageOut(bridgeType, chainId, messageId, messageData);
     }

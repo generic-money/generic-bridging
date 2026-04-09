@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import { BaseBridgeCoordinator, IBridgeAdapter } from "./BaseBridgeCoordinator.sol";
+import { BaseBridgeCoordinator } from "./BaseBridgeCoordinator.sol";
+import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
 
 abstract contract AdapterManager is BaseBridgeCoordinator {
     /**
@@ -58,6 +59,10 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
      * @notice Thrown when the new outbound adapter is not in the adapter list
      */
     error IsNotAdapter();
+    /**
+     * @notice Thrown when the adapters bridging fees type does not match coordinators
+     */
+    error BridgingFeesTypeMismatch();
 
     /**
      * @notice Sets a local bridge adapter for a specific bridge type
@@ -79,6 +84,7 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
         if (isAdapter) {
             require(adapter.bridgeCoordinator() == address(this), CoordinatorMismatch());
             require(adapter.bridgeType() == bridgeType, BridgeTypeMismatch());
+            require(adapter.NATIVE_BRIDGING_FEES() == NATIVE_BRIDGING_FEES(), BridgingFeesTypeMismatch());
         } else {
             require(address(config.outbound) != address(adapter), IsOutboundAdapter());
         }
@@ -128,7 +134,7 @@ abstract contract AdapterManager is BaseBridgeCoordinator {
         if (address(adapter) != address(0)) {
             require(config.isAdapter[address(adapter)], IsNotAdapter());
         }
-        config.outbound = adapter;
+        config.outbound = address(adapter);
         emit LocalOutboundBridgeAdapterUpdated(bridgeType, address(adapter));
     }
 

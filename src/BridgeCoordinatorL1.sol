@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { BridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
+import { BridgeCoordinator, BaseBridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
 import { PredepositCoordinator } from "./coordinator/PredepositCoordinator.sol";
 import { IWhitelabeledUnit } from "./interfaces/IWhitelabeledUnit.sol";
 
@@ -21,6 +21,12 @@ contract BridgeCoordinatorL1 is BridgeCoordinator, PredepositCoordinator {
      * @notice Thrown when the amount of unit tokens restricted does not match the expected amount
      */
     error IncorrectEscrowBalance();
+
+    /// @inheritdoc BaseBridgeCoordinator
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
+        return true;
+    }
 
     /**
      * @notice Lock units when bridging out

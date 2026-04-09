@@ -10,6 +10,11 @@ import { IBridgeAdapter } from "./IBridgeAdapter.sol";
  */
 interface IBridgeAdapterTokenFee is IBridgeAdapter {
     /**
+     * @notice Returns the address of the token used for paying bridge fees
+     */
+    function feeToken() external view returns (address);
+
+    /**
      * @notice Dispatches an outbound message through the underlying bridge implementation.
      * @param chainId Destination chain identifier recognised by the adapter implementation.
      * @param remoteAdapter Encoded address or identifier of the remote adapter endpoint.

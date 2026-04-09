@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { BridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
+import { BridgeCoordinator, BaseBridgeCoordinator } from "./coordinator/BridgeCoordinator.sol";
 import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 import { IWhitelabeledUnit } from "./interfaces/IWhitelabeledUnit.sol";
 
@@ -15,6 +15,12 @@ import { IWhitelabeledUnit } from "./interfaces/IWhitelabeledUnit.sol";
  */
 contract BridgeCoordinatorL2 is BridgeCoordinator {
     using SafeERC20 for IERC20;
+
+    /// @inheritdoc BaseBridgeCoordinator
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure override returns (bool) {
+        return true;
+    }
 
     /**
      * @notice Burns units when bridging out from L2

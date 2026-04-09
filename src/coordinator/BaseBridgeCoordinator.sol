@@ -7,7 +7,6 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import { IBridgeCoordinator } from "../interfaces/IBridgeCoordinator.sol";
-import { IBridgeAdapter } from "../interfaces/IBridgeAdapter.sol";
 import { Bytes32AddressLib } from "../utils/Bytes32AddressLib.sol";
 
 abstract contract BaseBridgeCoordinator is
@@ -31,7 +30,7 @@ abstract contract BaseBridgeCoordinator is
      * @param isAdapter Mapping of adapter addresses
      */
     struct LocalConfig {
-        IBridgeAdapter outbound;
+        address outbound;
         mapping(address => bool) isAdapter;
     }
 
@@ -68,9 +67,22 @@ abstract contract BaseBridgeCoordinator is
     mapping(bytes32 messageId => bytes32 messageHash) public failedMessageExecutions;
 
     /**
+     * @notice Mapping of whitelabeled unit token addresses to their escrowed virtual unit balances (18 decimals)
+     * @dev Unit tokens are not actually escrowed in the contract. Their virtual balance is tracked here for internal
+     * accounting purposes.
+     */
+    mapping(address whitelabel => uint256 units) public unitBalanceOf;
+
+    /**
      * @notice Reserved storage space to allow for layout changes in the future.
      */
-    uint256[50] private __gap;
+    uint256[49] private __gap;
+
+    /**
+     * @notice Indicates whether the bridge infrastructure for this coordinator expects native fees or token fees
+     */
+    // forge-lint: disable-next-line(mixed-case-function)
+    function NATIVE_BRIDGING_FEES() public pure virtual returns (bool);
 
     /**
      * @notice Checks if a specific bridge type is supported for a destination chain
@@ -90,7 +102,7 @@ abstract contract BaseBridgeCoordinator is
      * @param bridgeType The identifier for the bridge protocol
      * @return The local bridge adapter contract used for outbound messages
      */
-    function outboundLocalBridgeAdapter(uint16 bridgeType) public view returns (IBridgeAdapter) {
+    function outboundLocalBridgeAdapter(uint16 bridgeType) public view returns (address) {
         return bridgeTypes[bridgeType].local.outbound;
     }
 
@@ -171,13 +183,15 @@ abstract contract BaseBridgeCoordinator is
      * @param chainId The destination chain ID
      * @param messageData The encoded bridge message data to be sent
      * @param bridgeParams Protocol-specific parameters required by the bridge adapter
+     * @param fee The fee amount to be paid for the bridge operation (native or token)
      * @return messageId Unique identifier for tracking the cross-chain message
      */
     function _dispatchMessage(
         uint16 bridgeType,
         uint256 chainId,
         bytes memory messageData,
-        bytes calldata bridgeParams
+        bytes calldata bridgeParams,
+        uint256 fee
     )
         internal
         virtual
